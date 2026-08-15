@@ -197,3 +197,100 @@
   animation: hv-spin 0.8s linear infinite;
 }
 @keyframes hv-spin { to { transform: rotate(360deg); } }
+
+/* ── original-Hive layout: drifting hex field, deploy panel, input dock ── */
+
+.hv-field { position: absolute; inset: 0; overflow: hidden; }
+
+@keyframes hex-drift-a { 0%,100% { transform: translate(0,0) } 50% { transform: translate(9px,-14px) } }
+@keyframes hex-drift-b { 0%,100% { transform: translate(0,0) } 50% { transform: translate(-12px,10px) } }
+@keyframes hex-drift-c { 0%,100% { transform: translate(0,0) } 50% { transform: translate(7px,12px) } }
+
+.hv-hex {
+  position: absolute; width: 300px; height: 264px;
+  clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+  background: rgba(61, 47, 23, 0.72);
+  border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  animation: cell-in .45s ease both;
+  transition: filter .3s;
+}
+.hv-hex:nth-of-type(3n) { animation: cell-in .45s ease both, hex-drift-a 7s ease-in-out infinite; }
+.hv-hex:nth-of-type(3n+1) { animation: cell-in .45s ease both, hex-drift-b 8.5s ease-in-out infinite; }
+.hv-hex:nth-of-type(3n+2) { animation: cell-in .45s ease both, hex-drift-c 7.8s ease-in-out infinite; }
+.hv-hex:hover { filter: brightness(1.18); }
+.hv-hex::before {
+  content: ''; position: absolute; inset: 2px;
+  clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+  background: linear-gradient(160deg, rgba(46,36,16,.95), rgba(28,22,10,.97));
+  pointer-events: none;
+}
+.hv-hex.running { background: linear-gradient(135deg, #d4940a, #e8a317); }
+.hv-hex.running .hv-hex-body { animation: waggle-buzz 1.8s ease-in-out infinite; }
+.hv-hex.done { background: rgba(160, 217, 17, 0.55); }
+.hv-hex.nomatch { background: rgba(255, 140, 60, 0.4); }
+.hv-hex.queued { opacity: .65; }
+
+.hv-hex-body {
+  position: relative; width: 72%; text-align: center;
+  display: flex; flex-direction: column; gap: 5px; align-items: center;
+  color: var(--hv-fg); font-size: 12px; line-height: 1.35;
+}
+.hv-hex-name { font-weight: 800; font-size: 14px; letter-spacing: .3px; }
+.hv-hex-status { font-size: 10.5px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--hv-muted); }
+.hv-hex-title {
+  font-size: 11px; font-weight: 600; color: var(--hv-fg);
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.hv-hex-price { color: var(--hv-warning); font-weight: 800; font-size: 13px; }
+
+/* decorative drifting empty hexes */
+.hv-ghost-hex {
+  position: absolute; width: 120px; height: 106px; pointer-events: none;
+  clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+  border: 1px solid rgba(232, 178, 48, 0.14);
+  background: rgba(232, 178, 48, 0.03);
+}
+
+/* left column */
+.hv-side {
+  position: absolute; top: 84px; left: 22px; width: 300px; z-index: 5;
+  display: flex; flex-direction: column; gap: 14px; max-height: calc(100% - 100px); overflow-y: auto;
+}
+.hv-side textarea {
+  width: 100%; min-height: 92px; resize: vertical;
+  background: rgba(20, 16, 8, 0.6); border: 1px solid var(--hv-border);
+  border-radius: 10px; color: var(--hv-fg); font-size: 13px; padding: 10px 12px;
+  font-family: inherit; outline: none;
+}
+.hv-side textarea:focus { border-color: #e8b230; }
+.hv-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: lowercase;
+  color: #1c1608; background: linear-gradient(135deg, #d4940a, #e8a317);
+  border-radius: 99px; padding: 3px 10px;
+}
+
+/* needs-input dock */
+.hv-dock {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  bottom: 18px; width: min(760px, calc(100% - 360px)); z-index: 6;
+  max-height: 42%; overflow-y: auto;
+}
+.hv-question { padding: 12px 16px; border-top: 1px solid var(--hv-border); }
+.hv-question:first-of-type { border-top: none; }
+.hv-question-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.hv-pending {
+  font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
+  color: #ffb35c; background: rgba(255, 140, 60, 0.15); border: 1px solid rgba(255,140,60,.3);
+  border-radius: 99px; padding: 2px 8px; margin-left: auto;
+}
+.hv-question-text { color: var(--hv-fg); font-size: 13px; line-height: 1.5; margin-bottom: 8px; }
+.hv-answer-row { display: flex; gap: 8px; }
+.hv-answer-row input { flex: 1; }
+
+/* expanded worker detail */
+.hv-detail {
+  position: absolute; z-index: 8; width: 330px;
+  animation: cell-in .25s ease both;
+}

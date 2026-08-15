@@ -1,8 +1,9 @@
-// @hive swarm overlay — ported from the team's item-finder (honey/amber UI,
-// parallel per-retailer scan agents, queen's pick). Each retailer is one
-// worker doing a domain-locked live web search; results are tangible:
-// clickable product links, prices, ratings, match %, review summaries.
-// PLOP addition: any found item can be placed in the 3D scene at real size.
+// @hive swarm — original Hive UI: a dark honey field of drifting hexagon
+// workers, "Deploy Workers" panel, swarm stats, and a "Hive Needs Input" dock
+// where a specific bee asks the user a question chat-style. Functionality is
+// the per-retailer scan swarm: each worker does a domain-locked live web
+// search and returns a clickable product with price/rating/match %, placeable
+// in the 3D scene at listed dimensions.
 import { useMemo, useRef, useState, useEffect } from 'react'
 import '../../hive.css'
 import { API_BASE } from '../../lib/api'
@@ -19,6 +20,19 @@ const RETAILERS: { name: string; domain: string; emoji: string }[] = [
   { name: 'CB2', domain: 'cb2.com', emoji: '✨' },
   { name: 'Pottery Barn', domain: 'potterybarn.com', emoji: '🏺' },
   { name: 'Etsy', domain: 'etsy.com', emoji: '🧶' },
+]
+
+// scattered field positions (%) — organic honeycomb spread like the OG UI
+const HEX_POS: { left: number; top: number }[] = [
+  { left: 30, top: 4 },  { left: 52, top: 12 }, { left: 74, top: 3 },
+  { left: 41, top: 36 }, { left: 63, top: 44 }, { left: 84, top: 32 },
+  { left: 30, top: 66 }, { left: 53, top: 72 }, { left: 76, top: 63 },
+]
+
+const GHOSTS: { left: number; top: number; delay?: number }[] = [
+  { left: 24, top: 22 }, { left: 91, top: 16 }, { left: 46, top: 58 },
+  { left: 88, top: 52 }, { left: 35, top: 88 }, { left: 68, top: 90 },
+  { left: 95, top: 78 }, { left: 27, top: 45 },
 ]
 
 type CellStatus = 'idle' | 'queued' | 'running' | 'completed' | 'failed'
@@ -41,6 +55,7 @@ interface Cell {
   status: CellStatus
   result?: ScanResult
   error?: string
+  answered?: boolean   // user already clarified this worker once
 }
 
 export default function HiveScan({ initialQuery, onClose }: {
@@ -50,6 +65,8 @@ export default function HiveScan({ initialQuery, onClose }: {
   const [query, setQuery] = useState(initialQuery)
   const [cells, setCells] = useState<Map<string, Cell>>(new Map())
   const [scanning, setScanning] = useState(false)
+  const [expanded, setExpanded] = useState<string | null>(null)
+  const [answers, setAnswers] = useState<Record<string, string>>({})
   const runIdRef = useRef(0)
   const autoRan = useRef(false)
   const { scene, selectedId, applyEdit, select, pushChat } = useEditor()
@@ -57,41 +74,53 @@ export default function HiveScan({ initialQuery, onClose }: {
   const setCell = (name: string, cell: Cell) =>
     setCells((m) => new Map(m).set(name, cell))
 
+  const scanOne = async (r: { name: string; domain: string }, useQuery: string, runId: number, answered = false) => {
+    setCell(r.name, { status: 'running', answered })
+    try {
+      const res = await fetch(`${API_BASE}/api/scan`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ query: useQuery, retailer: r.name, domain: r.domain }),
+      })
+      if (!res.ok) throw new Error(`${res.status}`)
+      const result: ScanResult = await res.json()
+      if (runIdRef.current !== runId) return
+      setCell(r.name, { status: result.found ? 'completed' : 'failed', result, answered })
+    } catch (e) {
+      if (runIdRef.current !== runId) return
+      setCell(r.name, { status: 'failed', error: String(e), answered })
+    }
+  }
+
   const deploy = async (q?: string) => {
     const useQuery = (q ?? query).trim()
     if (!useQuery || scanning) return
     const runId = ++runIdRef.current
     setScanning(true)
+    setExpanded(null)
     const init = new Map<string, Cell>()
     RETAILERS.forEach((r) => init.set(r.name, { status: 'queued' }))
     setCells(init)
-
     await Promise.all(
       RETAILERS.map(async (r, i) => {
         // stagger takeoff so the swarm visibly deploys
         await new Promise((res) => setTimeout(res, i * 350))
         if (runIdRef.current !== runId) return
-        setCell(r.name, { status: 'running' })
-        try {
-          const res = await fetch(`${API_BASE}/api/scan`, {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ query: useQuery, retailer: r.name, domain: r.domain }),
-          })
-          if (!res.ok) throw new Error(`${res.status}`)
-          const result: ScanResult = await res.json()
-          if (runIdRef.current !== runId) return
-          setCell(r.name, { status: result.found ? 'completed' : 'failed', result })
-        } catch (e) {
-          if (runIdRef.current !== runId) return
-          setCell(r.name, { status: 'failed', error: String(e) })
-        }
+        await scanOne(r, useQuery, runId)
       }),
     )
     if (runIdRef.current === runId) setScanning(false)
   }
 
-  // auto-deploy when opened from @hive
+  // a worker asks for input, the user answers, that bee re-flies
+  const answerWorker = (name: string) => {
+    const guidance = (answers[name] ?? '').trim()
+    if (!guidance) return
+    const r = RETAILERS.find((x) => x.name === name)!
+    setAnswers((a) => ({ ...a, [name]: '' }))
+    scanOne(r, `${query.trim()}. User guidance for this store: ${guidance}`, runIdRef.current, true)
+  }
+
   useEffect(() => {
     if (initialQuery.trim() && !autoRan.current) {
       autoRan.current = true
@@ -127,20 +156,40 @@ export default function HiveScan({ initialQuery, onClose }: {
     }
   }, [cells])
 
+  // workers that need the user's input: no match, or a weak one, not yet answered
+  const questions = useMemo(() => {
+    const out: { name: string; question: string }[] = []
+    for (const [name, c] of cells) {
+      if (c.answered || c.status === 'running' || c.status === 'queued') continue
+      const r = c.result
+      if (c.status === 'failed' || (r && r.found && r.match_confidence < 0.45)) {
+        const why = r?.note || c.error || 'no close match surfaced'
+        out.push({
+          name,
+          question: r && r.found
+            ? `My best find at ${name} is only a ${Math.round((r.match_confidence) * 100)}% match ("${r.title.slice(0, 60)}"). Should I keep it, or search this store differently? Tell me what to try.`
+            : `I couldn't find a solid match at ${name} — ${why}. How should I adjust the search for this store? (e.g. different size, material, or budget)`,
+        })
+      }
+    }
+    return out
+  }, [cells])
+
   const best = useMemo(() => {
     let bestEntry: { name: string; r: ScanResult } | null = null
     let bestScore = -1
     for (const [name, c] of cells) {
       if (c.status === 'completed' && c.result?.found) {
-        const score =
-          c.result.match_confidence * 2 +
-          (c.result.rating ?? 3) / 5 +
+        const score = c.result.match_confidence * 2 + (c.result.rating ?? 3) / 5 +
           (c.result.price_usd != null ? 0.5 : 0)
         if (score > bestScore) { bestScore = score; bestEntry = { name, r: c.result } }
       }
     }
     return bestEntry
   }, [cells])
+
+  const expandedCell = expanded ? cells.get(expanded) : null
+  const expandedIdx = expanded ? RETAILERS.findIndex((r) => r.name === expanded) : -1
 
   return (
     <div className="hive-root" style={{ position: 'fixed', inset: 0, zIndex: 200 }}>
@@ -149,163 +198,173 @@ export default function HiveScan({ initialQuery, onClose }: {
       {Array.from({ length: 14 }).map((_, i) => (
         <div key={i} className="honey-particle" style={{ left: `${(i * 71) % 100}%`, bottom: `${(i * 37) % 40}%`, animationDelay: `${i * 0.7}s` }} />
       ))}
+      {GHOSTS.map((g, i) => (
+        <div key={i} className="hv-ghost-hex" style={{
+          left: `${g.left}%`, top: `${g.top}%`,
+          animation: `hex-drift-${['a', 'b', 'c'][i % 3]} ${7 + (i % 4)}s ease-in-out infinite`,
+          animationDelay: `${g.delay ?? i * 0.6}s`,
+        }} />
+      ))}
 
-      <div style={{ position: 'relative', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', overflowY: 'auto', padding: '28px 20px' }}>
-        <div style={{ width: 'min(880px, 100%)', display: 'flex', alignItems: 'center', gap: 14, marginBottom: 22 }}>
-          <div className="hex-badge animate-honey-glow" style={{ width: 44, height: 40, background: 'linear-gradient(135deg,#d4940a,#e8a317)', fontSize: 20 }}>🐝</div>
-          <div>
-            <h1 className="text-golden" style={{ fontSize: 26, fontWeight: 900, letterSpacing: 0.5 }}>hive scan</h1>
-            <div style={{ color: 'var(--hv-muted)', fontSize: 12, textTransform: 'uppercase', letterSpacing: 2 }}>deploy workers · find your item</div>
+      {/* header */}
+      <div style={{ position: 'relative', zIndex: 5, display: 'flex', alignItems: 'center', gap: 12, padding: '18px 24px' }}>
+        <div className="hex-badge animate-honey-glow" style={{ width: 40, height: 36, background: 'linear-gradient(135deg,#d4940a,#e8a317)', fontSize: 18 }}>⬡</div>
+        <span className="text-golden" style={{ fontSize: 24, fontWeight: 900 }}>Hive</span>
+        <span className="hv-chip">swarm intelligence</span>
+        <span style={{ flex: 1 }} />
+        <button className="hv-btn" style={{ background: 'transparent', color: 'var(--hv-muted)', border: '1px solid var(--hv-border)' }} onClick={onClose}>
+          ← back to plop
+        </button>
+      </div>
+
+      {/* left column: deploy + stats + swarm */}
+      <div className="hv-side">
+        <div className="glass-panel" style={{ padding: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            <span className="hex-badge" style={{ width: 26, height: 24, background: 'linear-gradient(135deg,#d4940a,#e8a317)', fontSize: 12 }}>🐝</span>
+            <span style={{ fontWeight: 800, color: 'var(--hv-fg)', fontSize: 14 }}>Deploy Workers</span>
           </div>
-          <div style={{ flex: 1 }} />
-          <button className="hv-btn" style={{ background: 'transparent', color: 'var(--hv-muted)', border: '1px solid var(--hv-border)' }} onClick={onClose}>
-            ← back to plop
-          </button>
-        </div>
-
-        <div className="glass-panel" style={{ width: 'min(880px, 100%)', padding: 18, display: 'flex', gap: 12, alignItems: 'center', marginBottom: 18 }}>
-          <input
-            placeholder="describe the item — e.g. greige linen 3-seat track arm sofa, ~213cm"
+          <textarea
+            placeholder={'describe the item —\ne.g. light gray linen square throw pillow 45x45 cm'}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && deploy()}
+            onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) deploy() }}
           />
-          <button className="hv-btn animate-honey-glow" onClick={() => deploy()} disabled={scanning || !query.trim()} style={{ whiteSpace: 'nowrap' }}>
-            {scanning ? 'workers deployed…' : '🐝 Deploy Workers'}
+          <button className="hv-btn animate-honey-glow" style={{ width: '100%', marginTop: 10 }}
+            onClick={() => deploy()} disabled={scanning || !query.trim()}>
+            {scanning ? 'workers deployed…' : '🐝 Deploy Swarm'}
           </button>
         </div>
 
         {cells.size > 0 && (
-          <div className="glass-panel" style={{ width: 'min(880px, 100%)', padding: '12px 18px', display: 'flex', gap: 26, marginBottom: 18, fontSize: 13 }}>
-            <Stat label="workers" value={String(stats.total)} color="var(--hv-fg)" icon="⬡" />
-            <Stat label="scanning" value={String(stats.running)} color="var(--hv-primary-light)" icon="⟳" pulse={stats.running > 0} />
-            <Stat label="found" value={String(stats.found)} color="var(--hv-success)" icon="✓" />
-            <Stat label="no match" value={String(stats.failed)} color="var(--hv-error)" icon="✕" />
+          <div className="glass-panel" style={{ padding: '14px 16px', display: 'flex', flexWrap: 'wrap', gap: 14, fontSize: 13 }}>
+            <span><b style={{ color: 'var(--hv-fg)', fontSize: 17 }}>{stats.total}</b> <span style={{ color: 'var(--hv-muted)', fontSize: 11 }}>TOTAL</span></span>
+            <span style={{ color: 'var(--hv-success)' }}>✓ <b>{stats.found}</b> <span style={{ color: 'var(--hv-muted)', fontSize: 11 }}>FOUND</span></span>
+            <span style={{ color: 'var(--hv-error)' }}>✕ <b>{stats.failed}</b> <span style={{ color: 'var(--hv-muted)', fontSize: 11 }}>NO MATCH</span></span>
             {stats.bestPrice != null && (
-              <Stat label="best price" value={`$${stats.bestPrice.toLocaleString()}`} color="var(--hv-warning)" icon="◆" />
+              <span style={{ color: 'var(--hv-warning)' }}>◆ <b>${stats.bestPrice.toLocaleString()}</b> <span style={{ color: 'var(--hv-muted)', fontSize: 11 }}>BEST</span></span>
             )}
           </div>
         )}
 
         {cells.size > 0 && (
-          <div className="honeycomb-grid" style={{ width: 'min(880px, 100%)' }}>
-            {RETAILERS.map((r) => {
-              const cell = cells.get(r.name) ?? { status: 'idle' as CellStatus }
-              return <AgentCell key={r.name} retailer={r} cell={cell} onPlace={placeInScene} />
-            })}
+          <div className="glass-panel" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontWeight: 800, color: 'var(--hv-fg)', fontSize: 13 }}>⬡ SWARM</span>
+            <span className="hv-chip">{stats.running} buzzing</span>
+            {best && <span style={{ color: 'var(--hv-muted)', fontSize: 11 }}>👑 {best.name}</span>}
           </div>
         )}
+      </div>
 
-        {best && !scanning && (
-          <div className="glass-panel animate-honey-glow" style={{ width: 'min(880px, 100%)', padding: 20, marginTop: 20, border: '1px solid rgba(232,178,48,0.5)' }}>
-            <div className="text-golden" style={{ fontWeight: 900, fontSize: 13, textTransform: 'uppercase', letterSpacing: 2, marginBottom: 8 }}>
-              👑 queen's pick
+      {/* hex worker field */}
+      <div className="hv-field" style={{ left: 340, right: 0, top: 70, bottom: 0 }}>
+        {cells.size > 0 && RETAILERS.map((r, i) => {
+          const cell = cells.get(r.name) ?? { status: 'idle' as CellStatus }
+          const pos = HEX_POS[i]
+          const cls = cell.status === 'running' ? 'running'
+            : cell.status === 'completed' ? 'done'
+            : cell.status === 'failed' ? 'nomatch'
+            : 'queued'
+          return (
+            <div key={r.name} className={`hv-hex ${cls}`}
+              style={{ left: `calc(${pos.left}% - 150px)`, top: `${pos.top}%` }}
+              onClick={() => setExpanded(expanded === r.name ? null : r.name)}
+            >
+              <div className="hv-hex-body">
+                <span style={{ fontSize: 20 }}>{r.emoji}</span>
+                <span className="hv-hex-name">{r.name}</span>
+                {cell.status === 'running' && <><div className="hv-spinner" /><span className="hv-hex-status">scanning {r.domain}</span></>}
+                {cell.status === 'queued' && <span className="hv-hex-status">◷ queued</span>}
+                {cell.status === 'completed' && cell.result && (
+                  <>
+                    <span className="hv-hex-title">{cell.result.title}</span>
+                    <span className="hv-hex-price">
+                      {cell.result.price_usd != null ? `$${cell.result.price_usd.toLocaleString()}` : ''}
+                      {cell.result.rating != null ? `  ${cell.result.rating}★` : ''}
+                    </span>
+                    <span className="hv-hex-status">{Math.round(cell.result.match_confidence * 100)}% match · tap for details</span>
+                  </>
+                )}
+                {cell.status === 'failed' && (
+                  <span className="hv-hex-status" style={{ color: '#ffb35c' }}>needs your input ↓</span>
+                )}
+              </div>
             </div>
-            <a href={best.r.url} target="_blank" rel="noreferrer" style={{ color: 'var(--hv-fg)', fontSize: 17, fontWeight: 700, textDecoration: 'none' }}>
-              {best.r.title} ↗
+          )
+        })}
+
+        {/* expanded detail card next to its hex */}
+        {expanded && expandedCell?.result && expandedIdx >= 0 && (
+          <div className="hv-detail glass-panel" style={{
+            left: `calc(${HEX_POS[expandedIdx].left}% - 165px)`,
+            top: `calc(${HEX_POS[expandedIdx].top}% + 200px)`,
+            padding: 14,
+          }}>
+            <a href={expandedCell.result.url} target="_blank" rel="noreferrer"
+              style={{ color: 'var(--hv-fg)', fontWeight: 700, fontSize: 13, textDecoration: 'none', lineHeight: 1.4 }}>
+              {expandedCell.result.title} ↗
             </a>
-            <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 14, alignItems: 'center' }}>
-              {best.r.price_usd != null && <span style={{ color: 'var(--hv-warning)', fontWeight: 800 }}>${best.r.price_usd.toLocaleString()}</span>}
-              <span style={{ color: 'var(--hv-muted)' }}>{best.name}</span>
-              {best.r.rating != null && <span style={{ color: 'var(--hv-primary-light)' }}>{best.r.rating}★</span>}
-              <span style={{ color: 'var(--hv-muted)' }}>{Math.round(best.r.match_confidence * 100)}% match</span>
-              <span style={{ flex: 1 }} />
-              {scene && (
-                <button className="hv-btn" onClick={() => placeInScene(best.r)}>place in scene</button>
+            <div style={{ display: 'flex', gap: 10, margin: '8px 0', fontSize: 12.5, alignItems: 'center' }}>
+              {expandedCell.result.price_usd != null && <span style={{ color: 'var(--hv-warning)', fontWeight: 800 }}>${expandedCell.result.price_usd.toLocaleString()}</span>}
+              {expandedCell.result.rating != null && <span style={{ color: 'var(--hv-primary-light)' }}>{expandedCell.result.rating}★</span>}
+              <span style={{ color: 'var(--hv-muted)' }}>{Math.round(expandedCell.result.match_confidence * 100)}% match</span>
+              {expandedCell.result.width_cm != null && (
+                <span style={{ color: 'var(--hv-muted)' }}>{expandedCell.result.width_cm}×{expandedCell.result.height_cm ?? '?'} cm</span>
               )}
             </div>
-            <div style={{ color: 'var(--hv-muted)', fontSize: 13, marginTop: 6 }}>{best.r.reviews_summary}</div>
+            <div style={{ color: 'var(--hv-muted)', fontSize: 11.5, lineHeight: 1.45, marginBottom: 10 }}>
+              {expandedCell.result.reviews_summary || expandedCell.result.note}
+            </div>
+            {scene && expandedCell.result.found && (
+              <button className="hv-btn" style={{ width: '100%', fontSize: 12 }} onClick={() => placeInScene(expandedCell.result!)}>
+                ⬡ place in scene
+              </button>
+            )}
           </div>
         )}
 
         {cells.size === 0 && (
-          <div style={{ color: 'var(--hv-muted)', marginTop: 60, textAlign: 'center', lineHeight: 1.8 }}>
+          <div style={{ position: 'absolute', left: '50%', top: '40%', transform: 'translate(-50%,-50%)', color: 'var(--hv-muted)', textAlign: 'center', lineHeight: 1.8 }}>
             <div style={{ fontSize: 44, marginBottom: 10 }}>⬡⬡⬡</div>
             describe an item and deploy the swarm —<br />
-            nine worker agents scan nine stores in parallel.
+            nine worker bees scan nine stores in parallel.
           </div>
         )}
       </div>
-    </div>
-  )
-}
 
-function Stat({ label, value, color, icon, pulse }: { label: string; value: string; color: string; icon: string; pulse?: boolean }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }} className={pulse ? 'animate-waggle' : ''}>
-      <span style={{ color }}>{icon}</span>
-      <span style={{ fontWeight: 800, color }}>{value}</span>
-      <span style={{ color: 'var(--hv-muted)', textTransform: 'uppercase', fontSize: 10, letterSpacing: 1.5 }}>{label}</span>
-    </div>
-  )
-}
-
-function AgentCell({ retailer, cell, onPlace }: {
-  retailer: { name: string; domain: string; emoji: string }
-  cell: Cell
-  onPlace: (r: ScanResult) => void
-}) {
-  const { status, result } = cell
-  return (
-    <div
-      className={`hv-cell hover-glow ${status === 'running' ? 'animate-border-warm animate-waggle' : ''}`}
-      style={{
-        borderColor:
-          status === 'completed' ? 'rgba(160,217,17,0.45)' :
-          status === 'failed' ? 'rgba(255,82,82,0.35)' : undefined,
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'rgba(61,47,23,0.5)' }}>
-        <span className="hex-badge" style={{ width: 26, height: 24, background: 'var(--hv-surface2)', fontSize: 13 }}>{retailer.emoji}</span>
-        <span style={{ fontWeight: 700, fontSize: 13 }}>{retailer.name}</span>
-        <span style={{ flex: 1 }} />
-        {status === 'queued' && <span style={{ color: 'var(--hv-muted)', fontSize: 11 }}>◷ queued</span>}
-        {status === 'running' && <div className="hv-spinner" />}
-        {status === 'completed' && <span style={{ color: 'var(--hv-success)', fontSize: 15 }}>✓</span>}
-        {status === 'failed' && <span style={{ color: 'var(--hv-error)', fontSize: 14 }}>✕</span>}
-      </div>
-
-      <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
-        {status === 'running' && (
-          <div style={{ color: 'var(--hv-muted)', fontSize: 12 }} className="animate-waggle">
-            scanning {retailer.domain}…
+      {/* Hive Needs Input dock */}
+      {questions.length > 0 && (
+        <div className="hv-dock glass-panel">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderBottom: '1px solid var(--hv-border)' }}>
+            <span className="hex-badge" style={{ width: 24, height: 22, background: 'linear-gradient(135deg,#d4940a,#e8a317)', fontSize: 11 }}>⬡</span>
+            <span style={{ fontWeight: 800, color: 'var(--hv-fg)', fontSize: 14 }}>Hive Needs Input</span>
+            <span className="hv-pending">{questions.length} pending</span>
           </div>
-        )}
-        {status === 'queued' && (
-          <div style={{ color: 'var(--hv-muted)', fontSize: 12, opacity: 0.6 }}>waiting for a free bee…</div>
-        )}
-        {result && status === 'completed' && (
-          <>
-            <a href={result.url} target="_blank" rel="noreferrer" style={{ color: 'var(--hv-fg)', fontSize: 12.5, fontWeight: 600, textDecoration: 'none', lineHeight: 1.35 }}>
-              {result.title} ↗
-            </a>
-            <div style={{ display: 'flex', gap: 10, fontSize: 12 }}>
-              {result.price_usd != null && <span style={{ color: 'var(--hv-warning)', fontWeight: 800 }}>${result.price_usd.toLocaleString()}</span>}
-              {result.rating != null && <span style={{ color: 'var(--hv-primary-light)' }}>{result.rating}★</span>}
-              <span style={{
-                fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 8, alignSelf: 'center',
-                background: result.match_confidence >= 0.8 ? 'rgba(160,217,17,0.15)' : result.match_confidence >= 0.5 ? 'rgba(232,163,23,0.15)' : 'rgba(255,82,82,0.15)',
-                color: result.match_confidence >= 0.8 ? 'var(--hv-success)' : result.match_confidence >= 0.5 ? 'var(--hv-warning)' : 'var(--hv-error)',
-              }}>
-                {Math.round(result.match_confidence * 100)}%
-              </span>
+          {questions.map((q) => (
+            <div key={q.name} className="hv-question">
+              <div className="hv-question-head">
+                <span style={{ fontWeight: 700, color: 'var(--hv-fg)', fontSize: 12.5 }}>
+                  {RETAILERS.find((r) => r.name === q.name)?.emoji} {q.name} worker
+                </span>
+                <span className="hv-pending">pending</span>
+              </div>
+              <div className="hv-question-text">{q.question}</div>
+              <div className="hv-answer-row">
+                <input
+                  placeholder="Type your answer…"
+                  value={answers[q.name] ?? ''}
+                  onChange={(e) => setAnswers((a) => ({ ...a, [q.name]: e.target.value }))}
+                  onKeyDown={(e) => { if (e.key === 'Enter') answerWorker(q.name) }}
+                />
+                <button className="hv-btn" style={{ fontSize: 12 }} onClick={() => answerWorker(q.name)}
+                  disabled={!(answers[q.name] ?? '').trim()}>
+                  ➤
+                </button>
+              </div>
             </div>
-            <div style={{ color: 'var(--hv-muted)', fontSize: 11, lineHeight: 1.4 }}>
-              {result.reviews_summary || result.note}
-            </div>
-            <button className="hv-btn" style={{ marginTop: 'auto', fontSize: 11, padding: '5px 10px' }}
-              onClick={() => onPlace(result)}>
-              ⬡ place in scene
-            </button>
-          </>
-        )}
-        {status === 'failed' && (
-          <div style={{ color: 'var(--hv-muted)', fontSize: 11.5, lineHeight: 1.4 }}>
-            {result?.note || cell.error || 'no close match in this store'}
-          </div>
-        )}
-        {status === 'idle' && <div style={{ color: 'var(--hv-muted)', opacity: 0.3, textAlign: 'center', marginTop: 20 }}>⬡</div>}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
