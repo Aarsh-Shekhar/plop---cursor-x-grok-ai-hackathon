@@ -2,7 +2,14 @@ import type {
   CommandResult, Project, ReconstructionJob, Scene, ShopResult,
 } from './types'
 
-export const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8100'
+// On a hosted origin (judges' link) there is no local API — and browsers gate
+// https→localhost requests behind a local-network permission prompt that can
+// leave fetches pending forever. Point at an instantly-failing host instead so
+// every client-side fallback fires immediately.
+const isLocalHost = typeof window !== 'undefined' &&
+  ['localhost', '127.0.0.1'].includes(window.location.hostname)
+export const API_BASE = import.meta.env.VITE_API_BASE ??
+  (isLocalHost ? 'http://localhost:8100' : 'https://api.plop.invalid')
 
 export const artifactUrl = (uri: string) =>
   uri.startsWith('http') ? uri : `${API_BASE}${uri}`
