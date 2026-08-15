@@ -30,7 +30,7 @@ function RoomInner() {
     identifyMode, setIdentifyMode, factSheetId, setFactSheetId,
   } = useEditor()
   const [shopTarget, setShopTarget] = useState<SceneObject | null>(null)
-  const [seedError, setSeedError] = useState<string | null>(null)
+  const [seedError] = useState<string | null>(null)
   const [showBefore, setShowBefore] = useState(false)
   // the real capture this twin was built from (photoreal source photo)
   const beforePhoto = '/demo3d/room-photo.png'
@@ -62,7 +62,7 @@ function RoomInner() {
     }).then(async (r) => {
       if (!r.ok) throw new Error((await r.json()).detail ?? r.statusText)
       loadScene(doc)
-    }).catch((e) => setSeedError(e.message))
+    }).catch(() => loadScene(doc))  // static hosting: no API — run fully client-side
   }, [groups])
 
   useEffect(() => {

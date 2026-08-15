@@ -3,6 +3,7 @@
 // and an auto-run AI identification (name-based fallback works offline).
 import { useEffect, useState } from 'react'
 import { identifyObject } from '../../lib/api'
+import { offlineIdentify } from '../../lib/offline'
 import { useEditor } from '../../state/editor'
 
 function Row({ k, v }: { k: string; v: string }) {
@@ -30,7 +31,10 @@ export default function FactSheet() {
       .then((result) => {
         updateObject(obj.id, (o) => ({ ...o, semantic: { ...o.semantic, identified: result } }))
       })
-      .catch(() => { /* offline / provider down — the sheet still shows measured facts */ })
+      .catch(() => {
+        const local = offlineIdentify(obj)
+        updateObject(obj.id, (o) => ({ ...o, semantic: { ...o.semantic, identified: local } }))
+      })
       .finally(() => setIdentifying(false))
   }, [factSheetId])
 

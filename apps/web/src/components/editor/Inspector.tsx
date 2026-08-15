@@ -3,6 +3,7 @@
 // vs spec) and never presents an uncertain identification as confirmed.
 import { useState } from 'react'
 import { identifyObject } from '../../lib/api'
+import { offlineIdentify } from '../../lib/offline'
 import { useEditor } from '../../state/editor'
 import type { MaterialSpec, SceneObject } from '../../lib/types'
 
@@ -46,8 +47,9 @@ export default function Inspector({ onReplace }: { onReplace: (obj: SceneObject)
     try {
       const result = await identifyObject(scene.id, obj.id)
       updateObject(obj.id, (o) => ({ ...o, semantic: { ...o.semantic, identified: result } }))
-    } catch (e) {
-      setError((e as Error).message)
+    } catch {
+      const local = offlineIdentify(obj)
+      updateObject(obj.id, (o) => ({ ...o, semantic: { ...o.semantic, identified: local } }))
     } finally {
       setIdentifying(false)
     }

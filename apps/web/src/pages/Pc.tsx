@@ -29,7 +29,7 @@ export default function Pc() {
     identifyMode, setIdentifyMode, factSheetId,
   } = useEditor()
   const [shopTarget, setShopTarget] = useState<SceneObject | null>(null)
-  const [seedError, setSeedError] = useState<string | null>(null)
+  const [seedError] = useState<string | null>(null)
   const [explode, setExplode] = useState(0)
   const [airflow, setAirflow] = useState(false)
 
@@ -57,7 +57,7 @@ export default function Pc() {
     }).then(async (r) => {
       if (!r.ok) throw new Error((await r.json()).detail ?? r.statusText)
       loadScene(doc)
-    }).catch((e) => setSeedError(e.message))
+    }).catch(() => loadScene(doc))  // static hosting: no API — run fully client-side
   }, [])
 
   useEffect(() => {

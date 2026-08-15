@@ -29,7 +29,7 @@ export default function Office() {
     identifyMode, setIdentifyMode, factSheetId,
   } = useEditor()
   const [shopTarget, setShopTarget] = useState<SceneObject | null>(null)
-  const [seedError, setSeedError] = useState<string | null>(null)
+  const [seedError] = useState<string | null>(null)
   const [showBefore, setShowBefore] = useState(false)
   // the phone capture this twin was built from (generated from a real
   // rendered frame, processed to read as a handheld photo)
@@ -61,7 +61,7 @@ export default function Office() {
     }).then(async (r) => {
       if (!r.ok) throw new Error((await r.json()).detail ?? r.statusText)
       loadScene(doc)
-    }).catch((e) => setSeedError(e.message))
+    }).catch(() => loadScene(doc))  // static hosting: no API — run fully client-side
   }, [groups])
 
   useEffect(() => {

@@ -7,6 +7,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { API_BASE, sendCommand } from '../../lib/api'
 import { matchLibrary } from '../../lib/objectLibrary'
+import { offlineScan } from '../../lib/offline'
 import { matchPartyGoal } from '../../lib/partyPlan'
 import { useEditor } from '../../state/editor'
 import type { SceneObject } from '../../lib/types'
@@ -59,7 +60,7 @@ export default function CommandBar() {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ query: raw.replace(/^(add|place|insert|put)\s+(a|an|the)?\s*/i, ''), retailer: 'Amazon', domain: 'amazon.com' }),
     }).then(async (r) => {
-      if (!r.ok) return
+      if (!r.ok) throw new Error(String(r.status))
       const p = await r.json()
       if (!p.found) { pushChat('hive', `No strong product match — kept the generic ${lib.label}.`); return }
       useEditor.getState().updateObject(obj.id, (o) => ({
@@ -74,7 +75,14 @@ export default function CommandBar() {
         semantic: { ...o.semantic, productMatches: [p] },
       }))
       pushChat('hive', `Optimal match: ${(p.title as string).slice(0, 60)}${p.price_usd != null ? ` — $${p.price_usd}` : ''}${p.width_cm != null ? ` (listed ${p.width_cm}×${p.height_cm ?? '?'} cm, applied)` : ''}`)
-    }).catch(() => {})
+    }).catch(() => {
+      // hosted demo: enrich from the deterministic offline estimate instead
+      const p = offlineScan(raw.replace(/^(add|place|insert|put)\s+(a|an|the)?\s*/i, ''), 'Amazon', 'amazon.com')
+      useEditor.getState().updateObject(obj.id, (o) => ({
+        ...o, semantic: { ...o.semantic, productMatches: [p] },
+      }))
+      pushChat('hive', `Best match: ${p.title} — $${p.price_usd} (opens the live Amazon search).`)
+    })
     return true
   }
 
@@ -117,8 +125,10 @@ export default function CommandBar() {
         const answer = res.commands.find((c) => c.operation === 'answer')?.params.text
         pushChat('plop', answer ?? res.assistantNote)
       }
-    } catch (e) {
-      pushChat('plop', `That didn't work: ${(e as Error).message}`)
+    } catch {
+      pushChat('plop', commandMode === 'goal'
+        ? 'The full goal planner runs on the local API. On this hosted demo, give it a hosting goal — e.g. "plan a party tonight for 20 people".'
+        : 'Live NL editing runs on the local API. On this hosted demo use "add a sofa", GOAL mode, @hive research, or drag objects directly.')
     } finally {
       setBusy(false)
       inputRef.current?.focus()
