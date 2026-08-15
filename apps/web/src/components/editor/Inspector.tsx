@@ -126,6 +126,25 @@ export default function Inspector({ onReplace }: { onReplace: (obj: SceneObject)
           </div>
         )}
 
+        {(obj.semantic.productMatches?.length ?? 0) > 0 && (() => {
+          const p = obj.semantic.productMatches![0] as Record<string, any>
+          return (
+            <div className="insp-section">
+              <div className="insp-section-title">Matched product</div>
+              {p.image_url && (
+                <img src={p.image_url} alt="" className="insp-product-img"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+              )}
+              <div className="listing-title">
+                {p.url ? <a href={p.url} target="_blank" rel="noreferrer">{p.title} ↗</a> : p.title}
+              </div>
+              <div className="listing-meta">
+                {p.price_usd != null && <span className="price">${p.price_usd}</span>}
+                {p.width_cm != null && <span>{p.width_cm}×{p.height_cm ?? '?'} cm</span>}
+              </div>
+            </div>
+          )
+        })()}
         {!ident && (
           <button className="btn primary full" onClick={runIdentify} disabled={identifying}>
             {identifying ? 'Identifying…' : mode === 'founder' ? 'Identify component' : 'Identify product'}

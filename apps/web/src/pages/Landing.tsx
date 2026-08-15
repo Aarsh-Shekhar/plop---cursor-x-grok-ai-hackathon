@@ -149,6 +149,13 @@ export default function Landing() {
               shopping via the swarm.</span>
             <span className="go">Open →</span>
           </Link>
+          <Link to="/datacenter" className="demo-card">
+            <b>🏢 DATACENTER — facility twin</b>
+            <span>Walk rack aisles, swap GPUs/storage/switches, watch live DCIM
+              telemetry react, procure via a vendor swarm — then zoom into one
+              server down to its components.</span>
+            <span className="go">Open →</span>
+          </Link>
           <Link to="/room" className="demo-card">
             <b>🚶 WALKTHROUGH — deep-dive twin</b>
             <span>The full editor on a free-roam room: WASD walking, inspector,

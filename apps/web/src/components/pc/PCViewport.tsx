@@ -276,7 +276,7 @@ export default function PCViewport({ explode, airflow }: { explode: number; airf
     pushMeasurePoint([e.point.x, e.point.y, e.point.z])
   }
   if (!scene) return null
-  const proxyObjects = scene.objects.filter((o) => o.geometry.kind === 'proxy-box')
+  const proxyObjects = scene.objects.filter((o) => o.geometry.kind === 'proxy-box' || o.geometry.kind === 'library')
   return (
     <Canvas
       dpr={[1, 2]}

@@ -51,7 +51,29 @@ export default function CommandBar() {
     }
     applyEdit((objects) => [...objects, obj])
     select(obj.id)
-    pushChat('plop', `Added a ${lib.label} (${(lib.dims[0] * 100).toFixed(0)}×${(lib.dims[1] * 100).toFixed(0)} cm) — drag it into place, or Replace/Compare for the real product.`)
+    pushChat('plop', `Added a ${lib.label} (${(lib.dims[0] * 100).toFixed(0)}×${(lib.dims[1] * 100).toFixed(0)} cm) — 🐝 finding the optimal real product…`)
+    // inline swarm enrichment: one bee finds the best real product for the
+    // description, then the object takes its name + listed dimensions
+    fetch(`${API_BASE}/api/scan`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ query: raw.replace(/^(add|place|insert|put)\s+(a|an|the)?\s*/i, ''), retailer: 'Amazon', domain: 'amazon.com' }),
+    }).then(async (r) => {
+      if (!r.ok) return
+      const p = await r.json()
+      if (!p.found) { pushChat('hive', `No strong product match — kept the generic ${lib.label}.`); return }
+      useEditor.getState().updateObject(obj.id, (o) => ({
+        ...o,
+        name: (p.title as string).slice(0, 42),
+        dimensions: p.width_cm != null ? {
+          width: p.width_cm / 100,
+          height: (p.height_cm ?? lib.dims[1] * 100) / 100,
+          depth: (p.depth_cm ?? lib.dims[2] * 100) / 100,
+          source: 'manufacturer-spec', confidence: 0.95,
+        } : o.dimensions,
+        semantic: { ...o.semantic, productMatches: [p] },
+      }))
+      pushChat('hive', `Optimal match: ${(p.title as string).slice(0, 60)}${p.price_usd != null ? ` — $${p.price_usd}` : ''}${p.width_cm != null ? ` (listed ${p.width_cm}×${p.height_cm ?? '?'} cm, applied)` : ''}`)
+    }).catch(() => {})
     return true
   }
 

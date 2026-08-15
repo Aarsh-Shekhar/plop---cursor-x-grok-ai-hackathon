@@ -6,6 +6,7 @@ import Editor from './pages/Editor'
 import Room from './pages/Room'
 import Demo from './pages/Demo'
 import Pc from './pages/Pc'
+import Datacenter from './pages/Datacenter'
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
           <Route path="/room" element={<Room />} />
           <Route path="/demo" element={<Demo />} />
           <Route path="/pc" element={<Pc />} />
+          <Route path="/datacenter" element={<Datacenter />} />
         </Routes>
       </BrowserRouter>
     </ErrorBoundary>

@@ -91,6 +91,10 @@ export default function Pc() {
             />
           </div>
           <div className="tool-group">
+            <a className="btn" href="/datacenter" style={{ border: 'none' }}
+              title="Zoom out: this server inside a walkable datacenter">🏢 datacenter</a>
+          </div>
+          <div className="tool-group">
             <button className={airflow ? 'on' : ''} onClick={() => setAirflow(!airflow)}
               title="Approximate airflow — heuristic visualization, not CFD">
               Airflow{airflow && <em className="approx-tag">approx</em>}

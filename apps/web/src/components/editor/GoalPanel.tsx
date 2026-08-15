@@ -30,7 +30,7 @@ interface GoalJob {
 }
 
 export default function GoalPanel({ jobId, onClose }: { jobId: string; onClose: () => void }) {
-  const { scene, applyEdit, pushChat, select, setLastGoalRun } = useEditor()
+  const { scene, applyEdit, pushChat, select, setLastGoalRun, setHighlighted } = useEditor()
   const [job, setJob] = useState<GoalJob | null>(null)
   const [appliedId, setAppliedId] = useState<string | null>(null)
   const [diff, setDiff] = useState<{ name: string; dist: number }[] | null>(null)
@@ -65,6 +65,8 @@ export default function GoalPanel({ jobId, onClose }: { jobId: string; onClose: 
       return t ? { ...o, transform: { ...o.transform, position: t } } : o
     }))
     setAppliedId(opt.id)
+    setHighlighted(Object.keys(opt.transforms))
+    setTimeout(() => setHighlighted([]), 6000)
     const moved = Object.keys(opt.transforms)
       .map((id) => {
         const o = scene.objects.find((x) => x.id === id)

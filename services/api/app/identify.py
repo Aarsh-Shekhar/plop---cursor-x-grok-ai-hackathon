@@ -140,10 +140,12 @@ SCAN_SCHEMA = {
         "width_cm": {"type": ["number", "null"]},
         "height_cm": {"type": ["number", "null"]},
         "depth_cm": {"type": ["number", "null"]},
+        "image_url": {"type": ["string", "null"],
+                      "description": "Direct product image URL if one appears in results"},
         "note": {"type": "string", "description": "One line on what was found or why nothing matched"},
     },
     "required": ["found", "title", "price_usd", "url", "rating", "reviews_summary",
-                 "match_confidence", "width_cm", "height_cm", "depth_cm", "note"],
+                 "match_confidence", "width_cm", "height_cm", "depth_cm", "image_url", "note"],
     "additionalProperties": False,
 }
 
@@ -155,7 +157,8 @@ def scan_retailer(query: str, retailer: str, domain: str) -> dict:
         f"Search {retailer} ({domain}) for this item: {query}. "
         "Find the single best matching product currently sold there. Report its exact "
         "title, current price in USD, direct product URL, star rating if visible, a "
-        "one-line review summary, product dimensions in cm when listed, and how "
+        "one-line review summary, product dimensions in cm when listed, a direct "
+        "product image URL if visible in results, and how "
         "confident you are it matches (0-1). "
         "Prices and ratings usually appear right in the search result snippets — read "
         "them from there; do not spend searches re-verifying. An approximate price from "

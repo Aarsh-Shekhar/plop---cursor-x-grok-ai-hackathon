@@ -132,6 +132,20 @@ def _pipeline(job_id: str, scene: dict, goal: str) -> dict:
         cands = _consumer_candidates(scene, movable, room)
     _step(job_id, f"Generated {len(cands)} candidates")
 
+    # 4b. children ride with parents: anything ON_TOP_OF a moved object gets
+    # the same delta (uses the derived scene graph, no LLM)
+    pos_of = {o["id"]: o["transform"]["position"] for o in objs}
+    on_top = [(r["fromId"], r["toId"]) for r in rels if r["rel"] == "ON_TOP_OF"]
+    for _, transforms, _n in cands:
+        for child_id, parent_id in on_top:
+            if parent_id in transforms and child_id not in transforms and child_id in pos_of:
+                dp = transforms[parent_id]
+                op = pos_of[parent_id]
+                cp = pos_of[child_id]
+                transforms[child_id] = [cp[0] + dp[0] - op[0],
+                                        cp[1] + dp[1] - op[1],
+                                        cp[2] + dp[2] - op[2]]
+
     # 5. validation ----------------------------------------------------------
     # Baseline faults that already exist in the captured scene (objects that
     # genuinely touch in the model) must not disqualify alternatives — only
@@ -161,6 +175,9 @@ def _pipeline(job_id: str, scene: dict, goal: str) -> dict:
                 c["preexisting"] = True
         if new_faults and not is_current:
             rejected += 1
+            continue
+        if not is_current and not transforms:
+            rejected += 1  # a no-op alternative is worthless
             continue
         walkway = next((float(c["detail"].split("≈")[1].split("cm")[0]) / 100
                         for c in checks if "lane" in c.get("detail", "")), None)
@@ -209,10 +226,20 @@ def _pipeline(job_id: str, scene: dict, goal: str) -> dict:
         s = C.score_layout(opt["checks"], opt.get("walkway"), best_price, budget,
                            pref_hits, carried_faults=carried)
         scored.append({**opt, "score": s["total"], "breakdown": s["breakdown"]})
-    scored.sort(key=lambda o: -o["score"])
+    scored.sort(key=lambda o: (-o["score"],
+                               o["label"].startswith("current"),
+                               -len(o["transforms"])))
     for i, o in enumerate(scored):
         o["id"] = f"option_{chr(65 + i)}"
         o["label"] = f"Option {chr(65 + i)} — {o['label']}"
+    if (scored and scored[0]["label"].startswith("Option A — current")
+            and len(scored) > 1
+            and scored[1]["score"] >= scored[0]["score"] - 3
+            and scored[1]["transforms"]):
+        scored[0], scored[1] = scored[1], scored[0]
+        for i, o in enumerate(scored):
+            o["id"] = f"option_{chr(65 + i)}"
+            o["label"] = f"Option {chr(65 + i)} — " + o["label"].split("— ", 1)[1]
     _step(job_id, "Scored options: " + ", ".join(f"{o['id'][-1]}={o['score']}" for o in scored))
 
     # 8. recommendation narrative (no new numbers) ---------------------------
@@ -248,26 +275,26 @@ def _pipeline(job_id: str, scene: dict, goal: str) -> dict:
 # ---- candidate generators (deterministic transformations) -----------------
 
 def _declash(scene, transforms, obj, target, room, axis="x"):
-    """Slide `target` along `axis` until obj no longer collides with anything
-    (other objects at their current-or-planned positions). Returns a valid
-    position or None."""
+    """Slide `target` along `axis` (then the other axis) until obj no longer
+    collides with anything. Returns a valid position or None."""
     objs = [o for o in scene["objects"] if not o["state"]["hidden"] and o["id"] != obj["id"]]
     others = [C.obj_aabb(o, transforms.get(o["id"])) for o in objs
               if C.is_floor_standing(o, scene["environment"]["floorY"])]
     step = 0.18
-    for k in range(24):
-        offset = (k + 1) // 2 * step * (1 if k % 2 == 0 else -1)
-        pos = list(target)
-        if axis == "x":
-            pos[0] += offset
-        else:
-            pos[2] += offset
-        cand = C.obj_aabb(obj, pos)
-        if (cand.min_x < room.min_x or cand.max_x > room.max_x or
-                cand.min_z < room.min_z or cand.max_z > room.max_z):
-            continue
-        if not any(cand.intersects(b, margin=0.03) for b in others):
-            return pos
+    for ax in (axis, "z" if axis == "x" else "x"):
+        for k in range(28):
+            offset = (k + 1) // 2 * step * (1 if k % 2 == 0 else -1)
+            pos = list(target)
+            if ax == "x":
+                pos[0] += offset
+            else:
+                pos[2] += offset
+            cand = C.obj_aabb(obj, pos)
+            if (cand.min_x < room.min_x or cand.max_x > room.max_x or
+                    cand.min_z < room.min_z or cand.max_z > room.max_z):
+                continue
+            if not any(cand.intersects(b, margin=0.03) for b in others):
+                return pos
     return None
 
 
@@ -286,7 +313,7 @@ def _consumer_candidates(scene, movable, room):
     t: dict[str, list[float]] = {}
     z_wall = room.min_z + 0.55
     x = room.min_x + 0.6
-    for o in big[:4]:
+    for o in big[:5]:
         w = o["dimensions"]["width"]
         target = [min(x + w / 2, room.max_x - w / 2 - 0.1), y_of(o), z_wall]
         pos = _declash(scene, t, o, target, room, "x")
@@ -299,7 +326,7 @@ def _consumer_candidates(scene, movable, room):
     t2: dict[str, list[float]] = {}
     x_wall = room.max_x - 0.6
     z = room.min_z + 0.7
-    for o in big[:4]:
+    for o in big[:5]:
         d = o["dimensions"]["depth"]
         target = [x_wall, y_of(o), min(z + d / 2 + 0.2, room.max_z - 0.4)]
         pos = _declash(scene, t2, o, target, room, "z")

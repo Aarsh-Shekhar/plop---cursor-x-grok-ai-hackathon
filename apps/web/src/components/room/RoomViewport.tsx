@@ -297,7 +297,7 @@ export default function RoomViewport({ groups, staticMeshes, bounds }: {
 
   if (!scene) return null
   const modelObjects = scene.objects.filter((o) => (o.geometry.kind as string) === 'model-part')
-  const proxyObjects = scene.objects.filter((o) => o.geometry.kind === 'proxy-box')
+  const proxyObjects = scene.objects.filter((o) => o.geometry.kind === 'proxy-box' || o.geometry.kind === 'library')
 
   return (
     <Canvas
@@ -305,7 +305,7 @@ export default function RoomViewport({ groups, staticMeshes, bounds }: {
       camera={{ fov: 60, near: 0.05, far: 100, position: eye }}
       style={{ background: '#101318' }}
       shadows={false}
-      gl={{ preserveDrawingBuffer: true }}  // enables canvas snapshots (2D photo export)
+      gl={{ preserveDrawingBuffer: true }}  // enables canvas snapshots (before-photo capture)
       onPointerMissed={() => select(null)}
     >
       <ambientLight intensity={1.15} />
