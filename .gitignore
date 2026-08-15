@@ -1,0 +1,11 @@
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+.env
+services/api/data/
+dist/
+.DS_Store
+vendor/hive/backend/.env
+vendor/hive/backend/*.db*
+vendor/hive/backend/screenshots/

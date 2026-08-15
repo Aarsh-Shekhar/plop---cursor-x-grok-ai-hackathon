@@ -1,0 +1,14 @@
+fastapi>=0.115
+uvicorn[standard]>=0.30
+python-dotenv>=1.0
+python-multipart>=0.0.9
+pillow>=10.0
+numpy>=1.26
+torch>=2.4
+transformers>=4.44
+opencv-python-headless>=4.9
+simple-lama-inpainting>=0.1.2
+anthropic>=0.40
+httpx>=0.27
+requests>=2.32
+pytest>=8.0
