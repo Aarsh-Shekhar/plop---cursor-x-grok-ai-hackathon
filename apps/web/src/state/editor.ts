@@ -39,6 +39,10 @@ interface EditorState {
   cycleMeasureUnit: () => void
   techView: boolean
   setTechView: (v: boolean) => void
+  identifyMode: boolean
+  setIdentifyMode: (v: boolean) => void
+  factSheetId: string | null
+  setFactSheetId: (id: string | null) => void
 
   loadScene: (scene: Scene) => void
   select: (id: string | null) => void
@@ -102,6 +106,10 @@ export const useEditor = create<EditorState>((set, get) => ({
     measureUnit: s.measureUnit === 'cm' ? 'in' : s.measureUnit === 'in' ? 'm' : 'cm' })),
   techView: false,
   setTechView: (techView) => set({ techView }),
+  identifyMode: false,
+  setIdentifyMode: (identifyMode) => set(identifyMode ? { identifyMode } : { identifyMode, factSheetId: null }),
+  factSheetId: null,
+  setFactSheetId: (factSheetId) => set({ factSheetId }),
 
   loadScene: (scene) => set({
     scene, mode: scene.mode, selectedId: null, undoStack: [], redoStack: [],

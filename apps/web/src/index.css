@@ -823,3 +823,48 @@ button.small {
   background: var(--surface-2); color: var(--text); border: 1px solid var(--border);
 }
 button.small.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* ---- identify mode: neon cursor + fact sheet ---- */
+.viewport-wrap.identify-on,
+.viewport-wrap.identify-on canvas {
+  cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 34 34"><circle cx="17" cy="17" r="9" fill="none" stroke="%23ff7b1a" stroke-width="2.6"/><circle cx="17" cy="17" r="12.5" fill="none" stroke="%23ff7b1a" stroke-width="1" opacity="0.45"/><line x1="17" y1="0" x2="17" y2="7" stroke="%23ff7b1a" stroke-width="2.6"/><line x1="17" y1="27" x2="17" y2="34" stroke="%23ff7b1a" stroke-width="2.6"/><line x1="0" y1="17" x2="7" y2="17" stroke="%23ff7b1a" stroke-width="2.6"/><line x1="27" y1="17" x2="34" y2="17" stroke="%23ff7b1a" stroke-width="2.6"/><circle cx="17" cy="17" r="1.8" fill="%23ff7b1a"/></svg>') 17 17, crosshair !important;
+}
+.identify-btn.on {
+  background: #ff7b1a !important; border-color: #ff7b1a !important; color: #fff !important;
+  box-shadow: 0 0 14px rgba(255, 123, 26, 0.55);
+}
+.identify-hint {
+  position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 6;
+  font-family: var(--mono); font-size: 12px; letter-spacing: 1.5px;
+  color: #fff; background: rgba(20, 12, 4, 0.82); border: 1px solid #ff7b1a;
+  box-shadow: 0 0 18px rgba(255, 123, 26, 0.35);
+  padding: 7px 16px; border-radius: 99px; pointer-events: none;
+}
+.fact-sheet {
+  position: absolute; top: 54px; left: 18px; z-index: 12;
+  width: 320px; max-height: calc(100% - 140px); overflow-y: auto;
+  background: var(--surface); border: 1.5px solid #ff7b1a; border-radius: 14px;
+  box-shadow: 0 0 0 3px rgba(255, 123, 26, 0.15), 0 24px 60px rgba(0,0,0,.35);
+  padding: 0 0 10px;
+  animation: fs-in .18s ease-out;
+}
+@keyframes fs-in { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }
+.fs-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 14px; border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; background: var(--surface); border-radius: 14px 14px 0 0;
+}
+.fs-title { font-weight: 800; font-size: 14.5px; color: #ff7b1a; flex: 1; }
+.fs-cat {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--text-dim); border: 1px solid var(--border); border-radius: 99px; padding: 3px 8px;
+}
+.fs-section { padding: 10px 14px 2px; }
+.fs-section-title {
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--text-dim); margin-bottom: 6px;
+}
+.fs-row { display: flex; justify-content: space-between; gap: 12px; padding: 3.5px 0; font-size: 12.5px; }
+.fs-k { color: var(--text-dim); flex: none; }
+.fs-v { text-align: right; font-weight: 600; }
+.fs-note { font-size: 12.5px; color: var(--text-dim); line-height: 1.5; }

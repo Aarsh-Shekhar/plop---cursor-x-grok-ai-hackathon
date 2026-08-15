@@ -12,6 +12,7 @@ import Inspector from '../components/editor/Inspector'
 import CommandBar from '../components/editor/CommandBar'
 import ShopPanel from '../components/editor/ShopPanel'
 import HiveScan from '../components/hive/HiveScan'
+import FactSheet from '../components/editor/FactSheet'
 import GoalPanel from '../components/editor/GoalPanel'
 import TechnicalPanel from '../components/editor/TechnicalPanel'
 import VoiceBubble from '../components/editor/VoiceBubble'
@@ -25,6 +26,7 @@ export default function Pc() {
     hiveScanQuery, setHiveScanQuery,
     goalJobId, setGoalJobId, techView, setTechView,
     measureMode, setMeasureMode, measureUnit, cycleMeasureUnit,
+    identifyMode, setIdentifyMode, factSheetId,
   } = useEditor()
   const [shopTarget, setShopTarget] = useState<SceneObject | null>(null)
   const [seedError, setSeedError] = useState<string | null>(null)
@@ -101,7 +103,10 @@ export default function Pc() {
             </button>
           </div>
           <div className="tool-group">
-            <button className={measureMode ? 'on' : ''} onClick={() => setMeasureMode(!measureMode)}
+            <button className={`identify-btn ${identifyMode ? 'on' : ''}`}
+              onClick={() => { setIdentifyMode(!identifyMode); setMeasureMode(false) }}
+              title="Identify: neon cursor — hover any component, click for its fact sheet">🔎 identify</button>
+            <button className={measureMode ? 'on' : ''} onClick={() => { setMeasureMode(!measureMode); setIdentifyMode(false) }}
               title="Measure: click two points">📏</button>
             {measureMode && (
               <button onClick={cycleMeasureUnit} title="Cycle units">{measureUnit}</button>
@@ -121,8 +126,12 @@ export default function Pc() {
       </header>
       <div className="editor-main">
         <SceneTree />
-        <div className="viewport-wrap">
+        <div className={`viewport-wrap ${identifyMode ? 'identify-on' : ''}`}>
           {scene && <PCViewport explode={explode} airflow={airflow} />}
+          {identifyMode && !factSheetId && (
+            <div className="identify-hint">🔎 IDENTIFY — hover a component, click for its fact sheet · Esc to exit</div>
+          )}
+          {factSheetId && <FactSheet />}
           {airflow && (
             <div className="overlay-note">Approximate airflow — heuristic visualization, not CFD</div>
           )}

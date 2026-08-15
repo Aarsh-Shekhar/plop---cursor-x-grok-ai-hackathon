@@ -21,7 +21,7 @@ const dragPoint = new THREE.Vector3()
 const dragOffset = new THREE.Vector3()
 
 export default function ObjectMesh({ obj }: { obj: SceneObject }) {
-  const { selectedId, highlighted, select, updateObject, setDragging, dragging, clearance, scene, measureMode } = useEditor()
+  const { selectedId, highlighted, select, updateObject, setDragging, dragging, clearance, scene, measureMode, identifyMode, setFactSheetId } = useEditor()
   const groupRef = useRef<THREE.Group>(null)
   const [tex, setTex] = useState<THREE.Texture | null>(null)
   const [hovered, setHovered] = useState(false)
@@ -42,10 +42,12 @@ export default function ObjectMesh({ obj }: { obj: SceneObject }) {
   }, [obj.id, obj.geometry.textureUri, obj.appearance.material])
 
   useEffect(() => {
-    // pointer = clickable, grab = draggable (already selected)
+    // pointer = clickable, grab = draggable (already selected); identify
+    // mode keeps its own neon cursor (set on the viewport wrapper)
+    if (identifyMode) return
     document.body.style.cursor = hovered ? (isSelected ? 'grab' : 'pointer') : 'auto'
     return () => { document.body.style.cursor = 'auto' }
-  }, [hovered, isSelected])
+  }, [hovered, isSelected, identifyMode])
 
   // all hooks must be above this line — an early return before a hook
   // crashes React when `hidden` flips
@@ -78,7 +80,7 @@ export default function ObjectMesh({ obj }: { obj: SceneObject }) {
   }
 
   const startDrag = (e: any) => {
-    if (obj.state.locked || measureMode) return
+    if (obj.state.locked || measureMode || identifyMode) return
     // Orbit-first: an unselected object never grabs the pointer — the first
     // click selects it (camera drag stays free), dragging moves it only once
     // it's selected. This keeps traversal from "sticking" to objects.
@@ -136,7 +138,8 @@ export default function ObjectMesh({ obj }: { obj: SceneObject }) {
     }
   }
 
-  const outlineColor = colliding ? '#ff4d4d'
+  const outlineColor = identifyMode && hovered ? '#ff7b1a'
+    : colliding ? '#ff4d4d'
     : isHighlighted ? '#ffd166'
     : isSelected ? '#4d96ff'
     : hovered ? '#8ab4ff' : null
@@ -155,7 +158,7 @@ export default function ObjectMesh({ obj }: { obj: SceneObject }) {
           onPointerUp={endDrag}
           onPointerOver={(e) => { e.stopPropagation(); if (!dragging) setHovered(true) }}
           onPointerOut={() => setHovered(false)}
-          onClick={(e) => { e.stopPropagation(); select(obj.id) }}
+          onClick={(e) => { e.stopPropagation(); if (identifyMode) { setFactSheetId(obj.id) } else { select(obj.id) } }}
         >
           <primitive object={libMesh} />
         </group>
@@ -169,7 +172,7 @@ export default function ObjectMesh({ obj }: { obj: SceneObject }) {
           onPointerUp={endDrag}
           onPointerOver={(e) => { e.stopPropagation(); if (!dragging) setHovered(true) }}
           onPointerOut={() => setHovered(false)}
-          onClick={(e) => { e.stopPropagation(); select(obj.id) }}
+          onClick={(e) => { e.stopPropagation(); if (identifyMode) { setFactSheetId(obj.id) } else { select(obj.id) } }}
         >
           <planeGeometry args={isFlat ? [width, Math.max(depth, width * 0.55)] : [width, height]} />
           <meshBasicMaterial
@@ -191,7 +194,7 @@ export default function ObjectMesh({ obj }: { obj: SceneObject }) {
           onPointerUp={endDrag}
           onPointerOver={(e) => { e.stopPropagation(); if (!dragging) setHovered(true) }}
           onPointerOut={() => setHovered(false)}
-          onClick={(e) => { e.stopPropagation(); select(obj.id) }}
+          onClick={(e) => { e.stopPropagation(); if (identifyMode) { setFactSheetId(obj.id) } else { select(obj.id) } }}
         >
           <boxGeometry args={[width, height, depth]} />
           <meshStandardMaterial

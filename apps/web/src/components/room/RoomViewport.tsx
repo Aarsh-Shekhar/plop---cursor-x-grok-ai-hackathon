@@ -99,7 +99,7 @@ const dragPoint = new THREE.Vector3()
 const dragOffset = new THREE.Vector3()
 
 function ModelObject({ obj, group }: { obj: SceneObject; group: RoomGroup }) {
-  const { selectedId, highlighted, select, updateObject, setDragging, dragging, measureMode } = useEditor()
+  const { selectedId, highlighted, select, updateObject, setDragging, dragging, measureMode, identifyMode, setFactSheetId } = useEditor()
   const groupRef = useRef<THREE.Group>(null)
   const [hovered, setHovered] = useState(false)
   const { camera, gl } = useThree()
@@ -135,12 +135,13 @@ function ModelObject({ obj, group }: { obj: SceneObject; group: RoomGroup }) {
   }, [obj.state.hidden, group])
 
   useEffect(() => {
+    if (identifyMode) return
     document.body.style.cursor = hovered ? (isSelected ? 'grab' : 'pointer') : 'auto'
     return () => { document.body.style.cursor = 'auto' }
-  }, [hovered, isSelected])
+  }, [hovered, isSelected, identifyMode])
 
   const startDrag = (e: any) => {
-    if (obj.state.locked || !isSelected || measureMode) return
+    if (obj.state.locked || !isSelected || measureMode || identifyMode) return
     e.stopPropagation()
     const vertical = e.shiftKey
     dragState.current = { active: true, vertical }
@@ -183,7 +184,7 @@ function ModelObject({ obj, group }: { obj: SceneObject; group: RoomGroup }) {
     }
   }
 
-  const outlineColor = isHighlighted ? '#ffd166' : isSelected ? '#4d96ff' : hovered ? '#8ab4ff' : null
+  const outlineColor = identifyMode && hovered ? '#ff7b1a' : isHighlighted ? '#ffd166' : isSelected ? '#4d96ff' : hovered ? '#8ab4ff' : null
 
   return (
     <group
@@ -197,7 +198,7 @@ function ModelObject({ obj, group }: { obj: SceneObject; group: RoomGroup }) {
       onPointerUp={endDrag}
       onPointerOver={(e) => { e.stopPropagation(); if (!dragging) setHovered(true) }}
       onPointerOut={() => setHovered(false)}
-      onClick={(e) => { e.stopPropagation(); select(obj.id) }}
+      onClick={(e) => { e.stopPropagation(); if (identifyMode) { setFactSheetId(obj.id) } else { select(obj.id) } }}
     >
       {outlineColor && (
         <lineSegments>
