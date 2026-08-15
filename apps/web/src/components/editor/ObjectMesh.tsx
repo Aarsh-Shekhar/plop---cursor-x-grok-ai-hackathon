@@ -50,6 +50,10 @@ export default function ObjectMesh({ obj }: { obj: SceneObject }) {
   const [sx, sy, sz] = obj.transform.scale
   const pos = obj.transform.position
 
+  // Horizontal surfaces (rugs, mats) captured in perspective look wrong as
+  // vertical billboards — lay them flat on the floor instead.
+  const isFlat = /rug|carpet|mat\b/.test(obj.label)
+
   // does this object overlap another? (clearance overlay)
   let colliding = false
   if (clearance && scene) {
@@ -132,8 +136,11 @@ export default function ObjectMesh({ obj }: { obj: SceneObject }) {
       rotation={[0, obj.transform.rotationY, 0]}
       scale={[sx, sy, sz]}
     >
-      {obj.geometry.kind === 'cutout' && tex ? (
+      {obj.geometry.kind === 'cutout' && !tex ? null /* no gray placeholder pop-in */
+      : obj.geometry.kind === 'cutout' && tex ? (
         <mesh
+          rotation={isFlat ? [-Math.PI / 2, 0, 0] : [0, 0, 0]}
+          position={isFlat ? [0, -height / 2 + 0.02, 0] : [0, 0, 0]}
           onPointerDown={startDrag}
           onPointerMove={moveDrag}
           onPointerUp={endDrag}
@@ -141,13 +148,16 @@ export default function ObjectMesh({ obj }: { obj: SceneObject }) {
           onPointerOut={() => setHovered(false)}
           onClick={(e) => { e.stopPropagation(); select(obj.id) }}
         >
-          <planeGeometry args={[width, height]} />
+          <planeGeometry args={isFlat ? [width, Math.max(depth, width * 0.55)] : [width, height]} />
           <meshBasicMaterial
             map={tex}
             transparent
             alphaTest={0.15}
             side={THREE.DoubleSide}
             depthWrite
+            polygonOffset
+            polygonOffsetFactor={-2}
+            polygonOffsetUnits={-2}
           />
         </mesh>
       ) : (
@@ -171,8 +181,10 @@ export default function ObjectMesh({ obj }: { obj: SceneObject }) {
       )}
 
       {outlineColor && (
-        <lineSegments>
-          <edgesGeometry args={[new THREE.BoxGeometry(width * 1.02, height * 1.02, Math.max(depth, 0.05) * 1.02)]} />
+        <lineSegments position={isFlat ? [0, -height / 2 + 0.02, 0] : [0, 0, 0]}>
+          <edgesGeometry args={[isFlat
+            ? new THREE.BoxGeometry(width * 1.02, 0.03, Math.max(depth, width * 0.55) * 1.02)
+            : new THREE.BoxGeometry(width * 1.02, height * 1.02, Math.max(depth, 0.05) * 1.02)]} />
           <lineBasicMaterial color={outlineColor} transparent opacity={0.95} />
         </lineSegments>
       )}

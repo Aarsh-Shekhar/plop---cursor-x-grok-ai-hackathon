@@ -62,7 +62,7 @@ export default function HivePanel({ runId, hiveUrl, onClose }: {
     if (!scene) return
     const anchor = scene.objects.find((o) => o.id === selectedId) ?? null
     const mid = -(scene.capture.depthMinM + scene.capture.depthMaxM) / 2
-    const proxy = makeProxyObject(c, anchor, [0, scene.environment.floorY + 0.4, mid])
+    const proxy = makeProxyObject(c, anchor, [0, 0, mid], scene.environment.floorY)
     applyEdit((objects) => [...objects, proxy])
     select(proxy.id)
     pushChat('plop', `Previewing "${c.title.slice(0, 50)}" — ${c.width_cm != null ? 'listed dimensions' : 'approximate size'}. Undo with ⌘Z.`)

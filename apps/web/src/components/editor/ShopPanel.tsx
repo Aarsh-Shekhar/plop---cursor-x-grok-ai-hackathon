@@ -3,6 +3,7 @@
 // (clearly marked approximate) or swaps it for the selected object.
 import { useEffect, useState } from 'react'
 import { shopSearch } from '../../lib/api'
+import { makeProxyObject } from '../../lib/candidates'
 import { useEditor } from '../../state/editor'
 import type { Listing, SceneObject } from '../../lib/types'
 
@@ -43,43 +44,19 @@ export default function ShopPanel({ target, onClose }: {
 
   const preview = (l: Listing, replace: boolean) => {
     if (!scene) return
-    const w = (l.width_cm ?? target.dimensions.width * 100) / 100
-    const h = (l.height_cm ?? target.dimensions.height * 100) / 100
-    const dep = (l.depth_cm ?? target.dimensions.depth * 100) / 100
-    const id = `obj_new_${Math.random().toString(36).slice(2, 8)}`
+    const proxy = makeProxyObject(l, target, [...target.transform.position], scene.environment.floorY)
+    if (replace) {
+      proxy.transform.position[0] = target.transform.position[0]
+      proxy.transform.position[2] = target.transform.position[2]
+    }
     applyEdit((objects) => {
       let next = objects
       if (replace) {
         next = next.map((o) => o.id === target.id ? { ...o, state: { ...o.state, hidden: true } } : o)
       }
-      const proxy: SceneObject = {
-        id,
-        name: l.title.slice(0, 40),
-        label: target.label,
-        category: target.category,
-        score: 1,
-        transform: {
-          position: replace
-            ? [...target.transform.position] as [number, number, number]
-            : [target.transform.position[0] + 0.4, target.transform.position[1], target.transform.position[2]],
-          rotationY: target.transform.rotationY,
-          scale: [1, 1, 1],
-        },
-        dimensions: {
-          width: w, height: h, depth: dep,
-          source: l.width_cm != null ? 'manufacturer-spec' : 'inferred',
-          confidence: l.width_cm != null ? 0.95 : 0.5,
-        },
-        geometry: { kind: 'proxy-box', source: 'candidate-preview' },
-        appearance: { material: { type: 'solid', color: '#8f9aad' }, dominantColors: [] },
-        perception: { confidence: 1 },
-        semantic: { description: `${l.title} — ${l.source}, $${l.price_usd}`, productMatches: [l] },
-        technical: {},
-        state: { hidden: false, locked: false },
-      }
       return [...next, proxy]
     })
-    select(id)
+    select(proxy.id)
     pushChat('plop', `Previewing "${l.title.slice(0, 50)}" at ${replace ? 'the original position' : 'the side'} — ` +
       `${l.width_cm != null ? 'true listed dimensions' : 'approximate dimensions'}. Undo with ⌘Z.`)
   }

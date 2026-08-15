@@ -40,13 +40,31 @@ def serialize_scene_context(scene: dict, selected_ids: list[str]) -> str:
     return "\n".join(lines)
 
 
+GSUITE_HINTS = ("gmail", "email", "e-mail", "calendar", "google doc", "google sheet",
+                "spreadsheet", "google slide", "presentation", "google form", "google drive")
+
+
+def pick_pipeline(prompt: str) -> str:
+    """PLOP tasks are research unless they clearly need a GSuite pipeline.
+
+    Auto-routing sends shopping-style prompts to the browser pipeline, which
+    needs Browserbase/OAuth infra — those runs fail on a plain dev setup, so
+    we pin the DuckDuckGo research pipeline that runs everywhere.
+    """
+    lower = prompt.lower()
+    if any(h in lower for h in GSUITE_HINTS):
+        return ""  # let Hive's own router decide; these need its GSuite flows
+    return "research"
+
+
 async def create_run(prompt: str, scene: dict | None, selected_ids: list[str]) -> dict:
     description = prompt
     if scene is not None:
         description = f"{prompt}\n\n{serialize_scene_context(scene, selected_ids)}"
     async with httpx.AsyncClient(timeout=30) as client:
         r = await client.post(f"{HIVE_API}/api/runs", json={
-            "tasks": [{"description": description, "pipeline_type": "", "url": "", "params": {}}],
+            "tasks": [{"description": description, "pipeline_type": pick_pipeline(prompt),
+                       "url": "", "params": {}}],
         })
         r.raise_for_status()
         run = r.json()

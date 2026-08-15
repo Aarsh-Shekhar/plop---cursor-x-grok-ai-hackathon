@@ -66,7 +66,10 @@ export default function BackdropMesh({ scene, onMiss }: {
 
       const indices: number[] = []
       const depthOf = (i: number) => -positions[i * 3 + 2]
-      const maxJump = 0.35
+      // discontinuity threshold scales with scene depth: room-scale scenes
+      // keep more triangles (fewer black voids), close-up scenes drop the
+      // foreground "bridges" that would wrap the scene in an occluding shell
+      const maxJump = Math.min(0.7, Math.max(0.25, dRange * 0.12))
       for (let r = 0; r < rows - 1; r++) {
         for (let c = 0; c < cols - 1; c++) {
           const a = r * cols + c
@@ -88,9 +91,9 @@ export default function BackdropMesh({ scene, onMiss }: {
       geo.setIndex(indices)
       geo.computeVertexNormals()
 
-      const cleanedImg = await loadImage(artifactUrl(scene.capture.cleanedUri))
-      const tex = new THREE.Texture(cleanedImg)
-      tex.needsUpdate = true
+      const cleanedUrl = artifactUrl(scene.capture.cleanedUri)
+      const tex = new THREE.TextureLoader().load(
+        cleanedUrl + (cleanedUrl.includes('?') ? '&' : '?') + 'canvas=1')
       tex.colorSpace = THREE.SRGBColorSpace
       if (!disposed) setBuilt({ geo, tex })
     })()

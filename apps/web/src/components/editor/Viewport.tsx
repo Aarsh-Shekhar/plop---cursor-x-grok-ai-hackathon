@@ -101,19 +101,42 @@ function GizmoInner({ obj, toolMode, updateObject, setDragging }: any) {
   )
 }
 
+function EditorCanvasEnvironment({ scene }: { scene: Scene }) {
+  // The "editor canvas" look: a grid floor plane + fog so regions outside the
+  // captured photo read as workspace, not as broken rendering.
+  const floorY = scene.environment.floorY
+  const mid = -(scene.capture.depthMinM + scene.capture.depthMaxM) / 2
+  const gridColor = scene.mode === 'founder' ? '#2a3038' : '#3a3f4a'
+  return (
+    <group>
+      <gridHelper
+        args={[60, 120, gridColor, gridColor]}
+        position={[0, floorY - 0.015, mid]}
+      />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, floorY - 0.02, mid]}>
+        <circleGeometry args={[30, 48]} />
+        <meshBasicMaterial color={scene.mode === 'founder' ? '#0e1116' : '#171a21'} />
+      </mesh>
+    </group>
+  )
+}
+
 export default function Viewport({ scene }: { scene: Scene }) {
   const { select, dragging, mode } = useEditor()
-  const bg = mode === 'founder' ? '#0b0d10' : '#12141a'
+  const bg = mode === 'founder' ? '#0b0d10' : '#14161c'
 
   return (
     <Canvas
       dpr={[1, 2]}
       camera={{ fov: 55, near: 0.05, far: 100, position: [0, 0.5, 1.2] }}
-      style={{ background: bg }}
+      style={{ background: `radial-gradient(120% 90% at 50% 20%, ${mode === 'founder' ? '#141920' : '#1d212b'} 0%, ${bg} 70%)` }}
+      gl={{ alpha: true }}
       onPointerMissed={() => select(null)}
     >
+      <fog attach="fog" args={[bg, 12, 40]} />
       <ambientLight intensity={0.9} />
       <directionalLight position={[2, 4, 2]} intensity={0.6} />
+      <EditorCanvasEnvironment scene={scene} />
       <BackdropMesh scene={scene} onMiss={() => select(null)} />
       {scene.objects.map((o) => <ObjectMesh key={o.id} obj={o} />)}
       <AirflowOverlay />
