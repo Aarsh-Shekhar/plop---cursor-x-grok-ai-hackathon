@@ -34,9 +34,10 @@ export interface SceneObject {
   transform: Transform
   dimensions: Dimensions
   geometry: {
-    kind: 'cutout' | 'proxy-box'
+    kind: 'cutout' | 'proxy-box' | 'library' | 'model-part'
     textureUri?: string
     box?: [number, number, number, number]
+    libraryKey?: string
     source: string
   }
   appearance: {

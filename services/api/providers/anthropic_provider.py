@@ -11,6 +11,18 @@ from .base import LLMProvider
 MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-opus-5")
 
 
+def _text_of(resp) -> str:
+    """All text blocks joined. The model may emit thinking blocks first; if
+    max_tokens is exhausted before any text, fail with a clear error instead
+    of StopIteration."""
+    parts = [b.text for b in resp.content if b.type == "text" and b.text.strip()]
+    if not parts:
+        raise RuntimeError(
+            f"model returned no text (stop_reason={resp.stop_reason}; "
+            "likely max_tokens exhausted by thinking)")
+    return "\n".join(parts)
+
+
 class AnthropicProvider(LLMProvider):
     name = "anthropic"
 
@@ -30,12 +42,16 @@ class AnthropicProvider(LLMProvider):
         if system:
             kwargs["system"] = system
         resp = self.client.messages.create(
-            model=MODEL, max_tokens=max_tokens,
+            model=MODEL, max_tokens=max(max_tokens, 3000),
             output_config={"format": {"type": "json_schema", "schema": schema}},
             messages=[{"role": "user", "content": self._content(prompt, image_b64)}],
             **kwargs,
         )
-        text = next(b.text for b in resp.content if b.type == "text")
+        text = _text_of(resp)
+        # schema-formatted JSON is the last text block that parses
+        for cand in reversed([b.text for b in resp.content if b.type == "text"]):
+            if cand.strip().startswith("{"):
+                return json.loads(cand)
         return json.loads(text)
 
     def generate_structured_with_search(self, prompt, schema, max_tokens=8000,
@@ -52,17 +68,17 @@ class AnthropicProvider(LLMProvider):
         )
         if resp.stop_reason == "refusal":
             return {}
-        text = "{}"
         for b in reversed(resp.content):
             if b.type == "text" and b.text.strip().startswith("{"):
-                text = b.text
-                break
-        return json.loads(text)
+                return json.loads(b.text)
+        raise RuntimeError(
+            f"search call produced no JSON (stop_reason={resp.stop_reason}) — "
+            "raise max_tokens")
 
     def reason(self, prompt, system=None, max_tokens=1024):
         kwargs = {"system": system} if system else {}
         resp = self.client.messages.create(
-            model=MODEL, max_tokens=max_tokens,
+            model=MODEL, max_tokens=max(max_tokens, 2000),
             messages=[{"role": "user", "content": prompt}], **kwargs,
         )
-        return next(b.text for b in resp.content if b.type == "text")
+        return _text_of(resp)

@@ -2,20 +2,26 @@
 // Cutout objects render their real captured pixels (RGBA crop) on a card at
 // true world size; proxy objects (previewed replacements) render as
 // dimension-accurate boxes clearly marked approximate.
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { artifactUrl } from '../../lib/api'
 import { getObjectTexture } from '../../lib/materials'
+import { buildLibraryMesh } from '../../lib/objectLibrary'
 import { useEditor } from '../../state/editor'
 import type { SceneObject } from '../../lib/types'
+
+function useMemoLibrary(key: string, dims: { width: number; height: number; depth: number }) {
+  return useMemo(() => buildLibraryMesh(key, dims) ?? new THREE.Group(),
+    [key, dims.width, dims.height, dims.depth])
+}
 
 const dragPlane = new THREE.Plane()
 const dragPoint = new THREE.Vector3()
 const dragOffset = new THREE.Vector3()
 
 export default function ObjectMesh({ obj }: { obj: SceneObject }) {
-  const { selectedId, highlighted, select, updateObject, setDragging, dragging, clearance, scene } = useEditor()
+  const { selectedId, highlighted, select, updateObject, setDragging, dragging, clearance, scene, measureMode } = useEditor()
   const groupRef = useRef<THREE.Group>(null)
   const [tex, setTex] = useState<THREE.Texture | null>(null)
   const [hovered, setHovered] = useState(false)
@@ -42,8 +48,9 @@ export default function ObjectMesh({ obj }: { obj: SceneObject }) {
   }, [hovered, isSelected])
 
   // all hooks must be above this line — an early return before a hook
-  // (liveRef below used to sit lower) crashes React when `hidden` flips
+  // crashes React when `hidden` flips
   const liveRef = useRef<[number, number, number] | null>(null)
+  const libMesh = useMemoLibrary(obj.geometry.libraryKey ?? '', obj.dimensions)
 
   if (obj.state.hidden) return null
 
@@ -71,7 +78,7 @@ export default function ObjectMesh({ obj }: { obj: SceneObject }) {
   }
 
   const startDrag = (e: any) => {
-    if (obj.state.locked) return
+    if (obj.state.locked || measureMode) return
     // Orbit-first: an unselected object never grabs the pointer — the first
     // click selects it (camera drag stays free), dragging moves it only once
     // it's selected. This keeps traversal from "sticking" to objects.
@@ -141,7 +148,18 @@ export default function ObjectMesh({ obj }: { obj: SceneObject }) {
       rotation={[0, obj.transform.rotationY, 0]}
       scale={[sx, sy, sz]}
     >
-      {obj.geometry.kind === 'cutout' && !tex ? null /* no gray placeholder pop-in */
+      {obj.geometry.kind === 'library' && obj.geometry.libraryKey ? (
+        <group
+          onPointerDown={startDrag}
+          onPointerMove={moveDrag}
+          onPointerUp={endDrag}
+          onPointerOver={(e) => { e.stopPropagation(); if (!dragging) setHovered(true) }}
+          onPointerOut={() => setHovered(false)}
+          onClick={(e) => { e.stopPropagation(); select(obj.id) }}
+        >
+          <primitive object={libMesh} />
+        </group>
+      ) : obj.geometry.kind === 'cutout' && !tex ? null /* no gray placeholder pop-in */
       : obj.geometry.kind === 'cutout' && tex ? (
         <mesh
           rotation={isFlat ? [-Math.PI / 2, 0, 0] : [0, 0, 0]}

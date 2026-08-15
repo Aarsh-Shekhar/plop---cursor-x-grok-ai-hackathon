@@ -116,3 +116,85 @@ def test_hive_context_serializer_compact():
     ctx = serialize_scene_context(scene, ["obj_1"])
     assert "SELECTED OBJECT" in ctx
     assert len(ctx) < 2000  # never ship gigabytes of geometry to the agent
+
+
+# ---- constraint engine ---------------------------------------------------
+
+def _mkscene(objs):
+    return {"mode": "consumer", "environment": {"floorY": 0}, "objects": objs}
+
+
+def _fobj(id_, x, z, w=1.0, d=0.5, h=1.0, label="sofa", cat="seating"):
+    o = obj(id_, x, h / 2, z)
+    o["label"] = label
+    o["category"] = cat
+    o["dimensions"].update({"width": w, "depth": d, "height": h})
+    o["perception"]["floorStanding"] = True
+    return o
+
+
+def test_collision_detected():
+    from app.constraints import check_layout
+    s = _mkscene([_fobj("a", 0, 0), _fobj("b", 0.2, 0)])
+    checks = check_layout(s)
+    coll = next(c for c in checks if c["label"] == "No collisions")
+    assert not coll["passed"] and coll["hard"]
+
+
+def test_no_collision_when_apart():
+    from app.constraints import check_layout
+    s = _mkscene([_fobj("a", 0, 0), _fobj("b", 3.0, 0)])
+    checks = check_layout(s)
+    assert next(c for c in checks if c["label"] == "No collisions")["passed"]
+
+
+def test_override_positions_used():
+    from app.constraints import check_layout
+    s = _mkscene([_fobj("a", 0, 0), _fobj("b", 0.2, 0)])
+    checks = check_layout(s, overrides={"b": [3.0, 0.5, 0]})
+    assert next(c for c in checks if c["label"] == "No collisions")["passed"]
+
+
+def test_window_blocking():
+    from app.constraints import check_layout
+    win = _fobj("w", 0, -2, w=1.5, d=0.1, h=1.5, label="window", cat="decor")
+    win["perception"]["floorStanding"] = False
+    tall = _fobj("t", 0, -1.6, w=1.0, d=0.4, h=1.8, label="bookshelf", cat="storage")
+    s = _mkscene([win, tall])
+    checks = check_layout(s)
+    blocked = next((c for c in checks if "unobstructed" in c["label"]), None)
+    assert blocked is not None and not blocked["passed"]
+
+
+def test_fit_report_clearance():
+    from app.constraints import fit_report
+    # two objects define the room extent; candidate sits between them
+    s = _mkscene([_fobj("a", 0, 0, w=1.0, d=1.0), _fobj("b", 3.0, 0, w=1.0, d=1.0)])
+    r = fit_report(s, (0.5, 0.5, 0.5), [1.5, 0.25, 0.0])
+    assert r["fits"] and r["clearance_cm"] > 0
+
+
+def test_fit_report_rejects_collision():
+    from app.constraints import fit_report
+    s = _mkscene([_fobj("a", 0, 0, w=1.0, d=1.0), _fobj("b", 3.0, 0, w=1.0, d=1.0)])
+    r = fit_report(s, (1.2, 0.5, 1.2), [0.3, 0.25, 0.0])
+    assert not r["fits"]
+
+
+def test_relations_on_top_of():
+    from app.relations import derive_relations
+    table = _fobj("t", 0, 0, w=1.2, d=0.6, h=0.45, label="table", cat="table")
+    vase = _fobj("v", 0, 0, w=0.1, d=0.1, h=0.2, label="vase", cat="decor")
+    vase["transform"]["position"] = [0, 0.55, 0]
+    s = _mkscene([table, vase])
+    rels = derive_relations(s)
+    assert any(r["rel"] == "ON_TOP_OF" and r["fromId"] == "v" for r in rels)
+
+
+def test_score_breakdown_sums():
+    from app.constraints import score_layout
+    checks = [{"label": "x", "passed": True, "hard": True},
+              {"label": "y", "passed": True, "hard": False}]
+    s = score_layout(checks, walkway_m=1.0, cost_usd=500, budget_usd=1000)
+    parts = sum(int(v.split("/")[0]) for v in s["breakdown"].values())
+    assert parts == s["total"] <= 100

@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls, useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
+import MeasureOverlay from '../editor/MeasureOverlay'
 import ObjectMesh from '../editor/ObjectMesh'
 import { API_BASE } from '../../lib/api'
 import { useEditor } from '../../state/editor'
@@ -98,7 +99,7 @@ const dragPoint = new THREE.Vector3()
 const dragOffset = new THREE.Vector3()
 
 function ModelObject({ obj, group }: { obj: SceneObject; group: RoomGroup }) {
-  const { selectedId, highlighted, select, updateObject, setDragging, dragging } = useEditor()
+  const { selectedId, highlighted, select, updateObject, setDragging, dragging, measureMode } = useEditor()
   const groupRef = useRef<THREE.Group>(null)
   const [hovered, setHovered] = useState(false)
   const { camera, gl } = useThree()
@@ -130,7 +131,7 @@ function ModelObject({ obj, group }: { obj: SceneObject; group: RoomGroup }) {
   }, [hovered, isSelected])
 
   const startDrag = (e: any) => {
-    if (obj.state.locked || !isSelected) return
+    if (obj.state.locked || !isSelected || measureMode) return
     e.stopPropagation()
     const vertical = e.shiftKey
     dragState.current = { active: true, vertical }
@@ -278,7 +279,12 @@ export default function RoomViewport({ groups, staticMeshes, bounds }: {
   staticMeshes: THREE.Mesh[]
   bounds: THREE.Box3
 }) {
-  const { scene, select, dragging } = useEditor()
+  const { scene, select, dragging, measureMode, pushMeasurePoint } = useEditor()
+  const onMeasure = (e: any) => {
+    if (!measureMode || !e.point) return
+    e.stopPropagation()
+    pushMeasurePoint([e.point.x, e.point.y, e.point.z])
+  }
   const center = bounds.getCenter(new THREE.Vector3())
   const size = bounds.getSize(new THREE.Vector3())
   const floorY = bounds.min.y
@@ -306,12 +312,15 @@ export default function RoomViewport({ groups, staticMeshes, bounds }: {
       <hemisphereLight args={['#ffffff', '#8a8f99', 0.9]} />
       <directionalLight position={[2, 5, 2]} intensity={1.1} />
       <directionalLight position={[-3, 3, -2]} intensity={0.5} />
+      <group onPointerDown={onMeasure}>
       <StaticRoom meshes={staticMeshes} />
       {modelObjects.map((o) => {
         const g = groups.find((gr) => gr.label === o.name)
         return g ? <ModelObject key={o.id} obj={o} group={g} /> : null
       })}
       {proxyObjects.map((o) => <ObjectMesh key={o.id} obj={o} />)}
+      </group>
+      <MeasureOverlay />
       <WalkControls floorY={floorY} />
       <PhotoCapture />
       <OrbitControls

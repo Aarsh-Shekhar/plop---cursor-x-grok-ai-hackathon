@@ -13,6 +13,9 @@ import Inspector from '../components/editor/Inspector'
 import CommandBar from '../components/editor/CommandBar'
 import ShopPanel from '../components/editor/ShopPanel'
 import HiveScan from '../components/hive/HiveScan'
+import GoalPanel from '../components/editor/GoalPanel'
+import TechnicalPanel from '../components/editor/TechnicalPanel'
+import VoiceBubble from '../components/editor/VoiceBubble'
 import { DEMO_SCENE_ID } from '../components/room/roomConfig'
 import type { Scene, SceneObject } from '../lib/types'
 
@@ -21,6 +24,8 @@ function RoomInner() {
   const {
     scene, loadScene, undo, redo, select, selectedId, applyEdit,
     hiveScanQuery, setHiveScanQuery, pushChat,
+    goalJobId, setGoalJobId, techView, setTechView,
+    measureMode, setMeasureMode, measureUnit, cycleMeasureUnit,
   } = useEditor()
   const [shopTarget, setShopTarget] = useState<SceneObject | null>(null)
   const [seedError, setSeedError] = useState<string | null>(null)
@@ -92,10 +97,19 @@ function RoomInner() {
     <div className="editor" data-mode="consumer">
       <header className="editor-header">
         <a href="/" className="brand">PLOP</a>
-        <span className="scene-name">Demo Living Room — walkable 3D</span>
+        <span className="scene-name">WALKTHROUGH · Living Room — free-roam editable twin</span>
         <div className="header-tools">
           <div className="tool-group">
             <button onClick={placeItem} title="Place a new item in the room">+ Place item</button>
+          </div>
+          <div className="tool-group">
+            <button className={measureMode ? 'on' : ''} onClick={() => setMeasureMode(!measureMode)}
+              title="Measure: click two points">📏</button>
+            {measureMode && (
+              <button onClick={cycleMeasureUnit} title="Cycle units">{measureUnit}</button>
+            )}
+            <button className={techView ? 'on' : ''} onClick={() => setTechView(!techView)}
+              title="Technical view">{'</>'}</button>
           </div>
           <div className="tool-group">
             <button onClick={undo} title="Undo (⌘Z)">↩</button>
@@ -113,10 +127,15 @@ function RoomInner() {
           {scene && <RoomViewport groups={groups} staticMeshes={staticMeshes} bounds={bounds} />}
           <CommandBar />
         </div>
-        {shopTarget
-          ? <ShopPanel target={shopTarget} onClose={() => setShopTarget(null)} />
-          : <Inspector onReplace={setShopTarget} />}
+        {goalJobId
+          ? <GoalPanel jobId={goalJobId} onClose={() => setGoalJobId(null)} />
+          : techView
+            ? <TechnicalPanel onClose={() => setTechView(false)} />
+            : shopTarget
+              ? <ShopPanel target={shopTarget} onClose={() => setShopTarget(null)} />
+              : <Inspector onReplace={setShopTarget} />}
       </div>
+      <VoiceBubble />
       {hiveScanQuery != null && (
         <HiveScan initialQuery={hiveScanQuery} onClose={() => setHiveScanQuery(null)} />
       )}

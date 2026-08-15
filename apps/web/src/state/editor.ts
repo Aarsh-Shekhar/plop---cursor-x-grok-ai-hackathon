@@ -24,6 +24,21 @@ interface EditorState {
   setHiveRun: (r: { runId: string; hiveUrl: string } | null) => void
   hiveScanQuery: string | null
   setHiveScanQuery: (q: string | null) => void
+  commandMode: 'edit' | 'goal'
+  setCommandMode: (m: 'edit' | 'goal') => void
+  goalJobId: string | null
+  setGoalJobId: (id: string | null) => void
+  lastGoalRun: unknown | null
+  setLastGoalRun: (r: unknown | null) => void
+  measureMode: boolean
+  setMeasureMode: (v: boolean) => void
+  measurePoints: [number, number, number][]
+  pushMeasurePoint: (p: [number, number, number]) => void
+  clearMeasure: () => void
+  measureUnit: 'cm' | 'in' | 'm'
+  cycleMeasureUnit: () => void
+  techView: boolean
+  setTechView: (v: boolean) => void
 
   loadScene: (scene: Scene) => void
   select: (id: string | null) => void
@@ -70,6 +85,23 @@ export const useEditor = create<EditorState>((set, get) => ({
   setHiveRun: (hiveRun) => set({ hiveRun }),
   hiveScanQuery: null,
   setHiveScanQuery: (hiveScanQuery) => set({ hiveScanQuery }),
+  commandMode: 'edit',
+  setCommandMode: (commandMode) => set({ commandMode }),
+  goalJobId: null,
+  setGoalJobId: (goalJobId) => set({ goalJobId }),
+  lastGoalRun: null,
+  setLastGoalRun: (lastGoalRun) => set({ lastGoalRun }),
+  measureMode: false,
+  setMeasureMode: (measureMode) => set({ measureMode, measurePoints: [] }),
+  measurePoints: [],
+  pushMeasurePoint: (p) => set((s) => ({
+    measurePoints: s.measurePoints.length >= 2 ? [p] : [...s.measurePoints, p] })),
+  clearMeasure: () => set({ measurePoints: [] }),
+  measureUnit: 'cm',
+  cycleMeasureUnit: () => set((s) => ({
+    measureUnit: s.measureUnit === 'cm' ? 'in' : s.measureUnit === 'in' ? 'm' : 'cm' })),
+  techView: false,
+  setTechView: (techView) => set({ techView }),
 
   loadScene: (scene) => set({
     scene, mode: scene.mode, selectedId: null, undoStack: [], redoStack: [],

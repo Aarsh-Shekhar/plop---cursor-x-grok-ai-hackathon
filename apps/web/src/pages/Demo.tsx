@@ -17,7 +17,7 @@ export default function Demo() {
     <div className="editor" data-mode="consumer">
       <header className="editor-header">
         <a href="/" className="brand">PLOP</a>
-        <span className="scene-name">Demo Room — photoreal, editable</span>
+        <span className="scene-name">SHOWROOM · Living Room — guided catalog demo</span>
         <div className="header-tools">
           <div className="tool-group">
             <button
@@ -26,7 +26,7 @@ export default function Demo() {
             >🐝 hive scan</button>
           </div>
           <div className="tool-group">
-            <a className="btn" href="/room" style={{ border: 'none' }}>walkable room →</a>
+            <a className="btn" href="/room" style={{ border: 'none' }}>walkthrough →</a>
           </div>
         </div>
         <div className="header-status">

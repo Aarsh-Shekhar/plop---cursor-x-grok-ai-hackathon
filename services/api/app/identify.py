@@ -161,7 +161,7 @@ def scan_retailer(query: str, retailer: str, domain: str) -> dict:
         "them from there; do not spend searches re-verifying. An approximate price from "
         "a snippet is better than a null price. "
         "If nothing close is sold there, set found=false and explain in note.",
-        SCAN_SCHEMA, max_tokens=2500, allowed_domains=[domain],
+        SCAN_SCHEMA, max_tokens=4500, allowed_domains=[domain],
     )
     if not result:
         return {"found": False, "title": "", "price_usd": None, "url": "", "rating": None,

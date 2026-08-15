@@ -8,6 +8,7 @@ import { Canvas, useThree } from '@react-three/fiber'
 import { OrbitControls, TransformControls } from '@react-three/drei'
 import * as THREE from 'three'
 import BackdropMesh from './BackdropMesh'
+import MeasureOverlay from './MeasureOverlay'
 import ObjectMesh from './ObjectMesh'
 import AirflowOverlay from './AirflowOverlay'
 import { useEditor } from '../../state/editor'
@@ -122,7 +123,12 @@ function EditorCanvasEnvironment({ scene }: { scene: Scene }) {
 }
 
 export default function Viewport({ scene }: { scene: Scene }) {
-  const { select, dragging, mode } = useEditor()
+  const { select, dragging, mode, measureMode, pushMeasurePoint } = useEditor()
+  const onMeasure = (e: any) => {
+    if (!measureMode || !e.point) return
+    e.stopPropagation()
+    pushMeasurePoint([e.point.x, e.point.y, e.point.z])
+  }
   const bg = mode === 'founder' ? '#0b0d10' : '#14161c'
 
   return (
@@ -136,9 +142,12 @@ export default function Viewport({ scene }: { scene: Scene }) {
       <fog attach="fog" args={[bg, 12, 40]} />
       <ambientLight intensity={0.9} />
       <directionalLight position={[2, 4, 2]} intensity={0.6} />
+      <group onPointerDown={onMeasure}>
       <EditorCanvasEnvironment scene={scene} />
       <BackdropMesh scene={scene} onMiss={() => select(null)} />
       {scene.objects.map((o) => <ObjectMesh key={o.id} obj={o} />)}
+      </group>
+      <MeasureOverlay />
       <AirflowOverlay />
       <SelectionGizmo />
       <CameraPresets />

@@ -15,7 +15,7 @@ from fastapi.responses import StreamingResponse  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 from pydantic import BaseModel  # noqa: E402
 
-from . import commands, hive_bridge, identify, jobs, store  # noqa: E402
+from . import commands, goal, hive_bridge, identify, jobs, relations, store  # noqa: E402
 
 ALLOWED_UPLOAD_TYPES = {"image/jpeg", "image/png", "image/webp", "image/heic"}
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024
@@ -179,6 +179,62 @@ async def scene_command(scene_id: str, body: CommandIn):
         return await run_in_threadpool(commands.parse, scene, body.text, body.selectedObjectId)
     except Exception as e:
         raise HTTPException(502, f"Command parsing failed: {e}")
+
+
+# -- goal mode (agent planning) ---------------------------------------------
+
+class GoalIn(BaseModel):
+    goal: str
+
+
+@app.post("/api/scenes/{scene_id}/goal")
+def start_goal(scene_id: str, body: GoalIn):
+    if not store.get_scene(scene_id):
+        raise HTTPException(404, "Scene not found")
+    if not body.goal.strip():
+        raise HTTPException(400, "Empty goal")
+    return goal.start(scene_id, body.goal.strip()[:600])
+
+
+@app.get("/api/goal-jobs/{job_id}")
+def get_goal(job_id: str):
+    j = goal.get(job_id)
+    if not j:
+        raise HTTPException(404, "Goal job not found")
+    return j
+
+
+@app.get("/api/scenes/{scene_id}/graph")
+def get_graph(scene_id: str):
+    scene = store.get_scene(scene_id)
+    if not scene:
+        raise HTTPException(404, "Scene not found")
+    return relations.scene_graph(scene)
+
+
+class CalibrateIn(BaseModel):
+    factor: float
+
+
+@app.post("/api/scenes/{scene_id}/calibrate")
+def calibrate(scene_id: str, body: CalibrateIn):
+    """Rescale the whole scene by a user-measured known distance."""
+    scene = store.get_scene(scene_id)
+    if not scene:
+        raise HTTPException(404, "Scene not found")
+    k = max(0.1, min(10.0, body.factor))
+    for o in scene["objects"]:
+        p = o["transform"]["position"]
+        o["transform"]["position"] = [p[0] * k, p[1] * k, p[2] * k]
+        for key in ("width", "height", "depth"):
+            o["dimensions"][key] = round(o["dimensions"][key] * k, 4)
+        o["dimensions"]["source"] = "user"
+    scene["environment"]["floorY"] = scene["environment"]["floorY"] * k
+    scene["capture"]["depthMinM"] *= k
+    scene["capture"]["depthMaxM"] *= k
+    scene["scaleConfidence"] = "calibrated"
+    store.save_scene(scene)
+    return {"ok": True, "scaleConfidence": "calibrated"}
 
 
 # -- identification + shopping ---------------------------------------------

@@ -3,6 +3,7 @@
 // sections only — nothing here can white-screen.
 import { Link, useNavigate } from 'react-router-dom'
 import ScanAnimation from '../components/landing/ScanAnimation'
+import ThemeToggle from '../components/ThemeToggle'
 
 export default function Landing() {
   const navigate = useNavigate()
@@ -11,7 +12,8 @@ export default function Landing() {
     <div className="landing" data-mode="consumer">
       <header className="site-header landing-header">
         <span className="brand">PLOP</span>
-        <nav>
+        <nav style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <ThemeToggle />
           <Link to="/projects" className="btn">Open app</Link>
         </nav>
       </header>
@@ -111,9 +113,9 @@ export default function Landing() {
           </div></div>
           <div className="feature-row"><span className="fi">🖥</span><div>
             <b>Founder mode for hardware</b>
-            <span>Component tree, power and thermal roles, connector lists,
-              exploded view, and an airflow overlay that's honestly labeled
-              approximate — not fake CFD.</span>
+            <span>For teams building PCs, robots, drones, semiconductors and
+              PCBs: component trees, power/thermal roles, connectors, exploded
+              views, and an honestly-labeled approximate airflow model.</span>
           </div></div>
           <div className="feature-row"><span className="fi">↩️</span><div>
             <b>Undo everything</b>
@@ -135,10 +137,9 @@ export default function Landing() {
         <p className="section-sub">All hardcoded, all editable, all connected to the hive.</p>
         <div className="demo-cards">
           <Link to="/demo" className="demo-card">
-            <b>🛋 Demo living room</b>
-            <span>Photoreal room with nav arrows, a furniture catalog, and a
-              measuring tape. Click furniture to edit; scan stores for
-              replacements.</span>
+            <b>🛋 SHOWROOM — guided demo</b>
+            <span>The 2-minute pitch: photoreal room, street-view arrows, themed
+              furniture catalog, measuring tape. Start here.</span>
             <span className="go">Open →</span>
           </Link>
           <Link to="/pc" className="demo-card">
@@ -149,9 +150,9 @@ export default function Landing() {
             <span className="go">Open →</span>
           </Link>
           <Link to="/room" className="demo-card">
-            <b>🚶 Walkable room v1</b>
-            <span>WASD through a CC-BY living room; every object grouped from the
-              real model geometry with the full inspector and NL command bar.</span>
+            <b>🚶 WALKTHROUGH — deep-dive twin</b>
+            <span>The full editor on a free-roam room: WASD walking, inspector,
+              Goal Mode agent, measurement, technical scene graph.</span>
             <span className="go">Open →</span>
           </Link>
         </div>
