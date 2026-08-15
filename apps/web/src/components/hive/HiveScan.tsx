@@ -58,10 +58,12 @@ interface Cell {
   answered?: boolean   // user already clarified this worker once
 }
 
-export default function HiveScan({ initialQuery, onClose }: {
+export default function HiveScan({ initialQuery, onClose, retailers }: {
   initialQuery: string
   onClose: () => void
+  retailers?: { name: string; domain: string; emoji: string }[]
 }) {
+  const RETAILERS_ACTIVE = retailers ?? RETAILERS
   const [query, setQuery] = useState(initialQuery)
   const [cells, setCells] = useState<Map<string, Cell>>(new Map())
   const [scanning, setScanning] = useState(false)
@@ -99,10 +101,10 @@ export default function HiveScan({ initialQuery, onClose }: {
     setScanning(true)
     setExpanded(null)
     const init = new Map<string, Cell>()
-    RETAILERS.forEach((r) => init.set(r.name, { status: 'queued' }))
+    RETAILERS_ACTIVE.forEach((r) => init.set(r.name, { status: 'queued' }))
     setCells(init)
     await Promise.all(
-      RETAILERS.map(async (r, i) => {
+      RETAILERS_ACTIVE.map(async (r, i) => {
         // stagger takeoff so the swarm visibly deploys
         await new Promise((res) => setTimeout(res, i * 350))
         if (runIdRef.current !== runId) return
@@ -116,7 +118,7 @@ export default function HiveScan({ initialQuery, onClose }: {
   const answerWorker = (name: string) => {
     const guidance = (answers[name] ?? '').trim()
     if (!guidance) return
-    const r = RETAILERS.find((x) => x.name === name)!
+    const r = RETAILERS_ACTIVE.find((x) => x.name === name)!
     setAnswers((a) => ({ ...a, [name]: '' }))
     scanOne(r, `${query.trim()}. User guidance for this store: ${guidance}`, runIdRef.current, true)
   }
@@ -189,7 +191,7 @@ export default function HiveScan({ initialQuery, onClose }: {
   }, [cells])
 
   const expandedCell = expanded ? cells.get(expanded) : null
-  const expandedIdx = expanded ? RETAILERS.findIndex((r) => r.name === expanded) : -1
+  const expandedIdx = expanded ? RETAILERS_ACTIVE.findIndex((r) => r.name === expanded) : -1
 
   return (
     <div className="hive-root" style={{ position: 'fixed', inset: 0, zIndex: 200 }}>
@@ -258,7 +260,7 @@ export default function HiveScan({ initialQuery, onClose }: {
 
       {/* hex worker field */}
       <div className="hv-field" style={{ left: 340, right: 0, top: 70, bottom: 0 }}>
-        {cells.size > 0 && RETAILERS.map((r, i) => {
+        {cells.size > 0 && RETAILERS_ACTIVE.map((r, i) => {
           const cell = cells.get(r.name) ?? { status: 'idle' as CellStatus }
           const pos = HEX_POS[i]
           const cls = cell.status === 'running' ? 'running'
@@ -344,7 +346,7 @@ export default function HiveScan({ initialQuery, onClose }: {
             <div key={q.name} className="hv-question">
               <div className="hv-question-head">
                 <span style={{ fontWeight: 700, color: 'var(--hv-fg)', fontSize: 12.5 }}>
-                  {RETAILERS.find((r) => r.name === q.name)?.emoji} {q.name} worker
+                  {RETAILERS_ACTIVE.find((r) => r.name === q.name)?.emoji} {q.name} worker
                 </span>
                 <span className="hv-pending">pending</span>
               </div>
