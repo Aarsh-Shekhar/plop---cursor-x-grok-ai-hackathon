@@ -69,3 +69,6 @@ weights carry their own terms).
   any public deployment.
 - `apps/web/src/hive.css` and the hive-scan UI are from this team's own
   upstream repo (Abhicodes8/plop item-finder).
+- `apps/web/public/demo/` — Shapespark CC0 room scene + matched render, and
+  `DemoRoom3D`/`demoFurniture` components, pulled from this team's upstream
+  repo (Abhicodes8/plop, commits d78ad48..180f5de).

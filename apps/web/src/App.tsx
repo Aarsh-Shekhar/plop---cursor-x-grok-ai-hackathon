@@ -4,6 +4,7 @@ import Landing from './pages/Landing'
 import Projects from './pages/Projects'
 import Editor from './pages/Editor'
 import Room from './pages/Room'
+import Demo from './pages/Demo'
 
 export default function App() {
   return (
@@ -14,6 +15,7 @@ export default function App() {
           <Route path="/projects" element={<Projects />} />
           <Route path="/editor/:sceneId" element={<Editor />} />
           <Route path="/room" element={<Room />} />
+          <Route path="/demo" element={<Demo />} />
         </Routes>
       </BrowserRouter>
     </ErrorBoundary>

@@ -59,8 +59,11 @@ export default function Landing() {
           </p>
           <div className="hero-actions">
             <Link to="/projects" className="btn primary big">Upload a photo</Link>
+            <button className="btn primary big" onClick={() => navigate('/demo')}>
+              Try the demo room
+            </button>
             <button className="btn big" onClick={() => navigate('/room')}>
-              Walk the 3D demo room
+              Walkable room v1
             </button>
           </div>
           <div className="hero-modes">
