@@ -11,3 +11,8 @@ vendor/hive/backend/*.db*
 vendor/hive/backend/screenshots/
 apps/web/public/demo3d/living_room.zip
 apps/web/public/demo3d/living_room.obj
+
+# local editor/tooling config
+.claude/
+.claude-launch-note
+.cursor/mcp.json

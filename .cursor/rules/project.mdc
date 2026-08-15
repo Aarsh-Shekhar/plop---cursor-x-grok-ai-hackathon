@@ -1,0 +1,21 @@
+---
+description: PLOP monorepo conventions
+alwaysApply: true
+---
+
+# PLOP — photos → editable 3D digital twins
+
+Monorepo layout:
+- `apps/web` — Vite + React + TypeScript + react-three-fiber front end (port 5174)
+- `services/api` — FastAPI reconstruction/agent service (port 8100, venv at `.venv`)
+- `vendor/hive` — vendored Hive swarm (MIT); keep its UI untouched
+- `scripts/dev.sh` — runs all four services
+
+Conventions:
+- Real-world units everywhere: meters in scene docs, cm in UI copy.
+- Deterministic geometry/constraint logic lives in `services/api/app/constraints.py` —
+  never let an LLM invent numbers the constraint engine can compute.
+- LLM access only through `services/api/providers` (Grok primary, Anthropic fallback).
+- New 3D objects go in `apps/web/src/lib/objectLibrary.ts` as procedural builders
+  scaled to real dimensions.
+- Run `npx tsc -b` in `apps/web` and `pytest` in `services/api` before committing.
