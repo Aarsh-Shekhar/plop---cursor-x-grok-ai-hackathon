@@ -8,7 +8,7 @@ import SceneTree from '../components/editor/SceneTree'
 import Inspector from '../components/editor/Inspector'
 import CommandBar from '../components/editor/CommandBar'
 import ShopPanel from '../components/editor/ShopPanel'
-import HivePanel from '../components/editor/HivePanel'
+import HiveScan from '../components/hive/HiveScan'
 import type { SceneObject } from '../lib/types'
 
 export default function Editor() {
@@ -16,7 +16,7 @@ export default function Editor() {
   const {
     scene, loadScene, mode, setMode, undo, redo, setToolMode, toolMode,
     setCameraPreset, airflow, setAirflow, clearance, setClearance, select, selectedId,
-    hiveRun, setHiveRun,
+    hiveScanQuery, setHiveScanQuery,
   } = useEditor()
   const [error, setError] = useState<string | null>(null)
   const [shopTarget, setShopTarget] = useState<SceneObject | null>(null)
@@ -122,12 +122,13 @@ export default function Editor() {
           )}
           <CommandBar />
         </div>
-        {hiveRun
-          ? <HivePanel runId={hiveRun.runId} hiveUrl={hiveRun.hiveUrl} onClose={() => setHiveRun(null)} />
-          : shopTarget
-            ? <ShopPanel target={shopTarget} onClose={() => setShopTarget(null)} />
-            : <Inspector onReplace={setShopTarget} />}
+        {shopTarget
+          ? <ShopPanel target={shopTarget} onClose={() => setShopTarget(null)} />
+          : <Inspector onReplace={setShopTarget} />}
       </div>
+      {hiveScanQuery != null && (
+        <HiveScan initialQuery={hiveScanQuery} onClose={() => setHiveScanQuery(null)} />
+      )}
       {selectedId === null && scene.objects.length > 0 && (
         <div className="hint-bar">Drag to orbit · scroll to zoom · click an object to select it, then drag it to move · shift-drag lifts</div>
       )}

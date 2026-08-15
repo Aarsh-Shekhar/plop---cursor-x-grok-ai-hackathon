@@ -59,3 +59,13 @@ weights carry their own terms).
   included.
 - `references/demo-hardware.jpg` — "Water cooling setup.jpg", Wikimedia
   Commons, CC BY-SA 4.0. Used as a demo input image.
+
+## Demo room 3D scene
+
+- `apps/web/public/demo3d/` — "Living Room" scene by **Wig42**, via the
+  [McGuire Computer Graphics Archive](https://casual-effects.com/data/),
+  licensed **CC-BY 3.0**. Converted OBJ→GLB with `obj2gltf` (Apache-2.0);
+  meshes grouped by material into selectable objects. Attribution required in
+  any public deployment.
+- `apps/web/src/hive.css` and the hive-scan UI are from this team's own
+  upstream repo (Abhicodes8/plop item-finder).

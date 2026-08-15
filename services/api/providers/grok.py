@@ -38,6 +38,9 @@ class GrokProvider(LLMProvider):
         if search:
             # xAI Live Search — grounded web results
             body["search_parameters"] = {"mode": "auto"}
+            if isinstance(search, list):  # domain-restricted (per-retailer workers)
+                body["search_parameters"]["sources"] = [
+                    {"type": "web", "allowed_websites": search[:5]}]
         r = self.http.post("/chat/completions", json=body)
         r.raise_for_status()
         return r.json()["choices"][0]["message"]["content"]
@@ -52,9 +55,11 @@ class GrokProvider(LLMProvider):
             {"role": "user", "content": content}]
         return json.loads(self._chat(messages, schema, max_tokens))
 
-    def generate_structured_with_search(self, prompt, schema, max_tokens=8000):
+    def generate_structured_with_search(self, prompt, schema, max_tokens=8000,
+                                        allowed_domains=None):
         messages = [{"role": "user", "content": prompt}]
-        return json.loads(self._chat(messages, schema, max_tokens, search=True))
+        return json.loads(self._chat(messages, schema, max_tokens,
+                                     search=allowed_domains or True))
 
     def reason(self, prompt, system=None, max_tokens=1024):
         messages = ([{"role": "system", "content": system}] if system else []) + [

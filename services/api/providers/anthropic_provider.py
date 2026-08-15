@@ -38,10 +38,15 @@ class AnthropicProvider(LLMProvider):
         text = next(b.text for b in resp.content if b.type == "text")
         return json.loads(text)
 
-    def generate_structured_with_search(self, prompt, schema, max_tokens=8000):
+    def generate_structured_with_search(self, prompt, schema, max_tokens=8000,
+                                        allowed_domains=None):
+        tool: dict = {"type": "web_search_20260209", "name": "web_search", "max_uses": 6}
+        if allowed_domains:
+            tool["allowed_domains"] = allowed_domains
+            tool["max_uses"] = 5
         resp = self.client.messages.create(
             model=MODEL, max_tokens=max_tokens,
-            tools=[{"type": "web_search_20260209", "name": "web_search", "max_uses": 6}],
+            tools=[tool],
             output_config={"format": {"type": "json_schema", "schema": schema}},
             messages=[{"role": "user", "content": prompt}],
         )

@@ -22,6 +22,8 @@ interface EditorState {
   dragging: boolean
   hiveRun: { runId: string; hiveUrl: string } | null
   setHiveRun: (r: { runId: string; hiveUrl: string } | null) => void
+  hiveScanQuery: string | null
+  setHiveScanQuery: (q: string | null) => void
 
   loadScene: (scene: Scene) => void
   select: (id: string | null) => void
@@ -66,6 +68,8 @@ export const useEditor = create<EditorState>((set, get) => ({
   dragging: false,
   hiveRun: null,
   setHiveRun: (hiveRun) => set({ hiveRun }),
+  hiveScanQuery: null,
+  setHiveScanQuery: (hiveScanQuery) => set({ hiveScanQuery }),
 
   loadScene: (scene) => set({
     scene, mode: scene.mode, selectedId: null, undoStack: [], redoStack: [],

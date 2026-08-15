@@ -16,8 +16,11 @@ class LLMProvider(ABC):
 
     @abstractmethod
     def generate_structured_with_search(self, prompt: str, schema: dict,
-                                        max_tokens: int = 8000) -> dict:
-        """Like generate_structured but with live web search available."""
+                                        max_tokens: int = 8000,
+                                        allowed_domains: list[str] | None = None) -> dict:
+        """Like generate_structured but with live web search available.
+        allowed_domains restricts the search to specific sites (per-retailer
+        swarm workers)."""
 
     @abstractmethod
     def reason(self, prompt: str, system: str | None = None,

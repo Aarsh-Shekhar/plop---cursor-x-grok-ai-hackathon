@@ -9,3 +9,6 @@ dist/
 vendor/hive/backend/.env
 vendor/hive/backend/*.db*
 vendor/hive/backend/screenshots/
+apps/web/public/demo3d/living_room.zip
+apps/web/public/demo3d/living_room.obj
+apps/web/public/demo3d/room-photo.png

@@ -3,6 +3,7 @@ import ErrorBoundary from './components/ErrorBoundary'
 import Landing from './pages/Landing'
 import Projects from './pages/Projects'
 import Editor from './pages/Editor'
+import Room from './pages/Room'
 
 export default function App() {
   return (
@@ -12,6 +13,7 @@ export default function App() {
           <Route path="/" element={<Landing />} />
           <Route path="/projects" element={<Projects />} />
           <Route path="/editor/:sceneId" element={<Editor />} />
+          <Route path="/room" element={<Room />} />
         </Routes>
       </BrowserRouter>
     </ErrorBoundary>

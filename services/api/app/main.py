@@ -114,6 +114,19 @@ def list_scenes():
     return store.list_scenes()
 
 
+@app.post("/api/scenes")
+def create_scene(body: dict):
+    """Seed a complete scene document (used by the hardcoded 3D demo room —
+    the client builds objects from the GLB's real geometry and registers them
+    here so NL commands and the Hive bridge work unchanged)."""
+    if not isinstance(body.get("id"), str) or not body["id"].startswith("scene_"):
+        raise HTTPException(400, "Scene id must start with scene_")
+    if not isinstance(body.get("objects"), list):
+        raise HTTPException(400, "objects list required")
+    store.save_scene(body)
+    return {"ok": True, "id": body["id"]}
+
+
 @app.get("/api/scenes/{scene_id}")
 def get_scene(scene_id: str):
     scene = store.get_scene(scene_id)
@@ -185,6 +198,43 @@ async def identify_endpoint(scene_id: str, object_id: str):
     obj.setdefault("semantic", {})["identified"] = result
     store.save_scene(scene)
     return result
+
+
+class DemoPhotoIn(BaseModel):
+    dataUrl: str
+
+
+@app.post("/api/demo/photo")
+def save_demo_photo(body: DemoPhotoIn):
+    """Save the walkable demo room's viewport snapshot as its matching 2D
+    photo (served from the web app's public dir)."""
+    import base64
+    prefix = "data:image/png;base64,"
+    if not body.dataUrl.startswith(prefix):
+        raise HTTPException(400, "Expected a PNG data URL")
+    raw = base64.b64decode(body.dataUrl[len(prefix):])
+    if len(raw) > 15 * 1024 * 1024:
+        raise HTTPException(413, "Snapshot too large")
+    out = Path(__file__).resolve().parents[3] / "apps" / "web" / "public" / "demo3d" / "room-photo.png"
+    out.write_bytes(raw)
+    return {"ok": True, "bytes": len(raw)}
+
+
+class ScanIn(BaseModel):
+    query: str
+    retailer: str
+    domain: str
+
+
+@app.post("/api/scan")
+async def scan(body: ScanIn):
+    """One hive worker: scan a single retailer for an item (parallel per-
+    retailer swarm — each call is one bee)."""
+    try:
+        return await run_in_threadpool(
+            identify.scan_retailer, body.query.strip()[:300], body.retailer, body.domain)
+    except Exception as e:
+        raise HTTPException(502, f"Scan failed: {e}")
 
 
 class ShopIn(BaseModel):

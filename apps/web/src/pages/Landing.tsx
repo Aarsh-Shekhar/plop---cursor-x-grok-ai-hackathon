@@ -59,11 +59,9 @@ export default function Landing() {
           </p>
           <div className="hero-actions">
             <Link to="/projects" className="btn primary big">Upload a photo</Link>
-            {demo && (
-              <button className="btn big" onClick={() => navigate(`/editor/${demo.id}`)}>
-                Try the demo scene
-              </button>
-            )}
+            <button className="btn big" onClick={() => navigate('/room')}>
+              Walk the 3D demo room
+            </button>
           </div>
           <div className="hero-modes">
             <span><strong>Consumer</strong> — redesign rooms, check fits, compare products.</span>

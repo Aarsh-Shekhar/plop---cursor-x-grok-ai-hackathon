@@ -126,6 +126,51 @@ def identify_object(scene: dict, obj: dict) -> dict:
     )
 
 
+SCAN_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "found": {"type": "boolean"},
+        "title": {"type": "string"},
+        "price_usd": {"type": ["number", "null"]},
+        "url": {"type": "string"},
+        "rating": {"type": ["number", "null"]},
+        "reviews_summary": {"type": "string"},
+        "match_confidence": {"type": "number",
+                             "description": "0-1 how well this matches the requested item"},
+        "width_cm": {"type": ["number", "null"]},
+        "height_cm": {"type": ["number", "null"]},
+        "depth_cm": {"type": ["number", "null"]},
+        "note": {"type": "string", "description": "One line on what was found or why nothing matched"},
+    },
+    "required": ["found", "title", "price_usd", "url", "rating", "reviews_summary",
+                 "match_confidence", "width_cm", "height_cm", "depth_cm", "note"],
+    "additionalProperties": False,
+}
+
+
+def scan_retailer(query: str, retailer: str, domain: str) -> dict:
+    """One hive worker: scan a single retailer for the item (domain-locked
+    web search). Ported from the team's item-finder agent."""
+    result = get_provider().generate_structured_with_search(
+        f"Search {retailer} ({domain}) for this item: {query}. "
+        "Find the single best matching product currently sold there. Report its exact "
+        "title, current price in USD, direct product URL, star rating if visible, a "
+        "one-line review summary, product dimensions in cm when listed, and how "
+        "confident you are it matches (0-1). "
+        "Prices and ratings usually appear right in the search result snippets — read "
+        "them from there; do not spend searches re-verifying. An approximate price from "
+        "a snippet is better than a null price. "
+        "If nothing close is sold there, set found=false and explain in note.",
+        SCAN_SCHEMA, max_tokens=2500, allowed_domains=[domain],
+    )
+    if not result:
+        return {"found": False, "title": "", "price_usd": None, "url": "", "rating": None,
+                "reviews_summary": "", "match_confidence": 0,
+                "width_cm": None, "height_cm": None, "depth_cm": None,
+                "note": "search declined"}
+    return result
+
+
 def shop(query: str, context: str = "", max_results: int = 6) -> dict:
     result = get_provider().generate_structured_with_search(
         f"Find up to {max_results} current online listings to buy: {query}. {context} "

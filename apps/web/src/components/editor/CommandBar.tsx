@@ -2,11 +2,11 @@
 // server-side); "@hive ..." -> creates a real Hive run with serialized scene
 // context and opens the original Hive UI in its own window.
 import { useRef, useState } from 'react'
-import { createHiveRun, sendCommand } from '../../lib/api'
+import { sendCommand } from '../../lib/api'
 import { useEditor } from '../../state/editor'
 
 export default function CommandBar() {
-  const { scene, selectedId, applyCommands, pushChat, chatLog, setHiveRun } = useEditor()
+  const { scene, selectedId, applyCommands, pushChat, chatLog, setHiveScanQuery } = useEditor()
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -21,12 +21,17 @@ export default function CommandBar() {
     pushChat('user', t)
     try {
       if (t.toLowerCase().startsWith('@hive')) {
-        const prompt = t.replace(/^@hive\s*/i, '')
-        pushChat('hive', 'Deploying Hive swarm…')
-        const res = await createHiveRun(prompt, scene.id, selectedId ? [selectedId] : [])
-        pushChat('hive', `Swarm deployed — ${res.workerCount ?? 'several'} workers on it. Opening the Hive window.`)
-        setHiveRun({ runId: res.run.id, hiveUrl: res.hiveUrl })
-        window.open(res.hiveUrl, 'plop-hive', 'width=1440,height=920')
+        // deploy the per-retailer scan swarm, enriched with scene context
+        let q = t.replace(/^@hive\s*/i, '')
+        const sel = scene.objects.find((o) => o.id === selectedId)
+        if (sel) {
+          const d = sel.dimensions
+          const ident = sel.semantic.identified as Record<string, any> | undefined
+          const name = (ident?.product_name as string) ?? sel.name
+          q += ` — similar to my ${name}, about ${(d.width * 100).toFixed(0)}×${(d.height * 100).toFixed(0)} cm`
+        }
+        pushChat('hive', 'Deploying the swarm — nine workers, nine stores.')
+        setHiveScanQuery(q)
       } else {
         const res = await sendCommand(scene.id, t, selectedId)
         applyCommands(res.commands)
