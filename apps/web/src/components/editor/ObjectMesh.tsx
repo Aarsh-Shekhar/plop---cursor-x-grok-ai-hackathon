@@ -40,6 +40,10 @@ export default function ObjectMesh({ obj }: { obj: SceneObject }) {
     return () => { document.body.style.cursor = 'auto' }
   }, [hovered])
 
+  // all hooks must be above this line — an early return before a hook
+  // (liveRef below used to sit lower) crashes React when `hidden` flips
+  const liveRef = useRef<[number, number, number] | null>(null)
+
   if (obj.state.hidden) return null
 
   const { width, height, depth } = obj.dimensions
@@ -92,7 +96,6 @@ export default function ObjectMesh({ obj }: { obj: SceneObject }) {
     updateObjectLive(target, dragState.current.vertical)
   }
 
-  const liveRef = useRef<[number, number, number] | null>(null)
   const updateObjectLive = (target: THREE.Vector3, vertical: boolean) => {
     const next: [number, number, number] = vertical
       ? [pos[0], target.y, pos[2]]
