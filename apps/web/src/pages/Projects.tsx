@@ -51,16 +51,16 @@ const ROOM_STAGES: DemoStage[] = [
 ]
 
 const DC_DETECTIONS: Detection[] = [
-  { label: 'server rack', conf: 0.97, box: [20, 0, 27, 98] },
-  { label: 'server rack', conf: 0.96, box: [50, 0, 25, 97] },
-  { label: 'server rack', conf: 0.94, box: [0, 1, 18, 97] },
-  { label: 'blade chassis', conf: 0.90, box: [25, 2, 20, 17] },
-  { label: 'patch cabling', conf: 0.91, box: [22, 24, 26, 46] },
-  { label: 'patch cabling', conf: 0.89, box: [52, 7, 22, 52] },
-  { label: 'rack door latch', conf: 0.88, box: [16, 17, 5, 11] },
-  { label: 'status LEDs', conf: 0.84, box: [55, 57, 13, 34] },
-  { label: 'status LEDs', conf: 0.82, box: [3, 55, 7, 38] },
-  { label: 'cold aisle floor', conf: 0.80, box: [12, 90, 70, 10] },
+  { label: 'liquid-cooled rack row', conf: 0.97, box: [0, 48, 60, 50] },
+  { label: 'coolant manifold — supply/return', conf: 0.95, box: [1, 16, 80, 36] },
+  { label: 'server rack row', conf: 0.94, box: [12, 0, 37, 14] },
+  { label: 'containment pod', conf: 0.92, box: [51, 0, 39, 23] },
+  { label: 'CDU cabinet', conf: 0.90, box: [62, 30, 15, 26] },
+  { label: 'CDU cabinet', conf: 0.89, box: [76, 40, 20, 36] },
+  { label: 'PDU pair', conf: 0.88, box: [68, 52, 14, 33] },
+  { label: 'cold-plate loops', conf: 0.86, box: [8, 52, 52, 44] },
+  { label: 'pipe riser', conf: 0.84, box: [0, 0, 12, 10] },
+  { label: 'raised floor', conf: 0.80, box: [58, 76, 41, 23] },
 ]
 
 const DC_STAGES: DemoStage[] = [

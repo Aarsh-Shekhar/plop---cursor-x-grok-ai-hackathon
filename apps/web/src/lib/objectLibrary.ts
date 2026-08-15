@@ -251,6 +251,75 @@ export const LIBRARY: LibraryItem[] = [
     },
   },
   {
+    key: 'cake', label: 'Celebration Cake', category: 'decor',
+    synonyms: ['cake', 'birthday cake', 'celebration cake'],
+    dims: [0.3, 0.25, 0.3],
+    build: () => {
+      const g = new THREE.Group()
+      const frosting = new THREE.MeshStandardMaterial({ color: 0xf6e7e0, roughness: 0.6 })
+      const accent = new THREE.MeshStandardMaterial({ color: 0xd96a8b, roughness: 0.55 })
+      g.add(cyl(0.15, 0.10, frosting, 0, -0.075, 0))          // bottom tier
+      g.add(cyl(0.15, 0.012, accent, 0, -0.019, 0))           // filling line
+      g.add(cyl(0.095, 0.09, frosting, 0, 0.032, 0))          // top tier
+      g.add(cyl(0.095, 0.012, accent, 0, 0.082, 0))
+      for (let i = 0; i < 5; i++) {                            // candles + flames
+        const a = (i / 5) * Math.PI * 2
+        const x = Math.cos(a) * 0.055, z = Math.sin(a) * 0.055
+        g.add(cyl(0.006, 0.05, mat.canvas([0x4d96ff, 0xf2b64c, 0x6bcb77, 0xd96a8b, 0x9b6bcb][i]), x, 0.115, z))
+        const flame = new THREE.Mesh(new THREE.SphereGeometry(0.008, 6, 6),
+          new THREE.MeshStandardMaterial({ color: 0xffd27a, emissive: 0xffb347, emissiveIntensity: 2 }))
+        flame.position.set(x, 0.147, z)
+        flame.scale.y = 1.6
+        g.add(flame)
+      }
+      return g
+    },
+  },
+  {
+    key: 'balloons', label: 'Balloon Cluster', category: 'decor',
+    synonyms: ['balloon', 'balloons', 'balloon cluster'],
+    dims: [0.55, 1.6, 0.55],
+    build: () => {
+      const g = new THREE.Group()
+      const colors = [0xe25563, 0x4d96ff, 0xf2b64c, 0x6bcb77, 0x9b6bcb]
+      const string = new THREE.MeshStandardMaterial({ color: 0xcfcac2, roughness: 0.9 })
+      g.add(cyl(0.045, 0.05, mat.metal(), 0, -0.775, 0))       // weight at the floor
+      for (let i = 0; i < 5; i++) {
+        const a = (i / 5) * Math.PI * 2
+        const x = Math.cos(a) * 0.13, z = Math.sin(a) * 0.13
+        const y = 0.55 + (i % 3) * 0.11
+        const b = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 12),
+          new THREE.MeshStandardMaterial({ color: colors[i], roughness: 0.25, metalness: 0.1 }))
+        b.position.set(x, y, z)
+        b.scale.y = 1.18
+        g.add(b)
+        const line = cyl(0.0015, y + 0.75, string, x * 0.6, (y - 0.775) / 2, z * 0.6)
+        line.rotation.z = x * 0.12
+        g.add(line)
+      }
+      return g
+    },
+  },
+  {
+    key: 'confetti', label: 'Confetti', category: 'decor',
+    synonyms: ['confetti', 'party confetti'],
+    dims: [2.0, 0.02, 1.4],
+    build: () => {
+      const g = new THREE.Group()
+      const colors = [0xe25563, 0x4d96ff, 0xf2b64c, 0x6bcb77, 0x9b6bcb, 0xf0ede7]
+      let seed = 7
+      const rand = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647 }
+      for (let i = 0; i < 140; i++) {
+        const piece = box(0.028, 0.003, 0.018,
+          new THREE.MeshStandardMaterial({ color: colors[i % colors.length], roughness: 0.5 }),
+          (rand() - 0.5) * 1.9, 0, (rand() - 0.5) * 1.3)
+        piece.rotation.y = rand() * Math.PI
+        g.add(piece)
+      }
+      return g
+    },
+  },
+  {
     key: 'speaker', label: 'Party Speaker', category: 'electronics',
     synonyms: ['speaker', 'party speaker', 'partybox', 'bluetooth speaker', 'soundbar', 'subwoofer'],
     dims: [0.34, 1.05, 0.32],

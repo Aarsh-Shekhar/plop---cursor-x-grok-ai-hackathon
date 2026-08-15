@@ -6,7 +6,7 @@
 // and hive-sourced party gear (buffet table, speaker) is placed on apply.
 
 export const matchPartyGoal = (text: string) =>
-  /\b(party|parties|guests?|people over|ppl|birthday|host|hosting|celebrat|entertain)\b/i.test(text)
+  /\b(party|parties|guests?|people|ppl|birthday|host|hosting|celebrat|entertain|gathering|get.?together|hangout|kickback|friends over|event)\b/i.test(text)
 
 /** One inserted object on apply (rendered from the 3D library at real dims). */
 export interface PartyAddition {
@@ -15,7 +15,8 @@ export interface PartyAddition {
   category: string
   dims: [number, number, number]           // w, h, d meters
   pos: [number, number, number]
-  product: {
+  rotationY?: number
+  product?: {
     title: string; price_usd: number; url: string; retailer: string
     width_cm: number; height_cm: number; depth_cm: number
   }
@@ -84,6 +85,36 @@ export const PARTY_ADDITIONS: PartyAddition[] = [
       width_cm: 30, height_cm: 57, depth_cm: 30,
     },
   },
+  // décor — the details that make it read as a party, not just moved furniture
+  {
+    name: 'Celebration Cake',
+    libraryKey: 'cake', category: 'decor',
+    dims: [0.3, 0.25, 0.3],
+    pos: [-0.55, 0.894, 0.78],   // centered on the buffet tabletop
+    product: {
+      title: 'Two-Tier Celebration Cake (serves 24)',
+      price_usd: 42.99, url: 'https://www.instacart.com/products/celebration-cake', retailer: 'Instacart',
+      width_cm: 30, height_cm: 25, depth_cm: 30,
+    },
+  },
+  {
+    name: 'Balloon Cluster',
+    libraryKey: 'balloons', category: 'decor',
+    dims: [0.55, 1.6, 0.55],
+    pos: [-2.25, 0.824, 3.85],   // back-left corner
+  },
+  {
+    name: 'Balloon Cluster',
+    libraryKey: 'balloons', category: 'decor',
+    dims: [0.55, 1.6, 0.55],
+    pos: [2.55, 0.824, 0.95],    // front-right corner
+  },
+  {
+    name: 'Confetti',
+    libraryKey: 'confetti', category: 'decor',
+    dims: [2.0, 0.02, 1.4],
+    pos: [0.30, 0.055, 2.05],    // scattered over the dance floor
+  },
 ]
 
 const A_CHECKS: Check[] = [
@@ -93,6 +124,7 @@ const A_CHECKS: Check[] = [
   { label: 'Walkway ≥ 76 cm', passed: true, hard: false, detail: 'widest clear lane ≈ 96 cm (door → drinks station)' },
   { label: 'Door & window bay clear', passed: true, hard: true, detail: 'bay kept open as the buffet lane' },
   { label: 'Power for speaker', passed: true, hard: false, detail: 'outlet on left wall 0.8 m from speaker position' },
+  { label: 'Décor staged', passed: true, hard: false, detail: 'cake on buffet · balloons ×2 corners · confetti on the dance floor' },
 ]
 
 const B_CHECKS: Check[] = [
@@ -117,7 +149,7 @@ export function buildPartyResult(_goal: string) {
     options: [
       {
         id: 'party-a', label: 'Option A — dance-floor layout', score: 92,
-        note: 'Seating and tables sweep to the perimeter, the rug centers as the dance floor, drinks station in the back-right corner. Applies 11 moves and places the 2 hive-sourced items.',
+        note: 'Seating and tables sweep to the perimeter, the rug centers as the dance floor, drinks station in the back-right corner. Applies 11 moves, places 3 hive-sourced products and party décor — cake on the buffet, balloons in both corners, confetti over the dance floor.',
         transforms: A_TRANSFORMS, checks: A_CHECKS,
         breakdown: { Fit: '20/20', Clearance: '18/20', Capacity: '20/20', Ergonomics: '18/20', Preference: '16/20' },
         additions: PARTY_ADDITIONS,
@@ -135,13 +167,15 @@ export function buildPartyResult(_goal: string) {
         breakdown: { Fit: '15/20', Clearance: '10/20', Capacity: '5/20', Ergonomics: '12/20', Preference: '12/20' },
       },
     ],
-    products: PARTY_ADDITIONS.map((a) => ({
-      title: a.product.title, price_usd: a.product.price_usd, url: a.product.url,
-      retailer: a.product.retailer, width_cm: a.product.width_cm,
-      height_cm: a.product.height_cm, depth_cm: a.product.depth_cm,
+    products: PARTY_ADDITIONS.filter((a) => a.product).map((a) => ({
+      title: a.product!.title, price_usd: a.product!.price_usd, url: a.product!.url,
+      retailer: a.product!.retailer, width_cm: a.product!.width_cm,
+      height_cm: a.product!.height_cm, depth_cm: a.product!.depth_cm,
       reviews_summary: a.name === 'JBL PartyBox 110'
         ? '4.7★ — built-in light show, 12 h battery; loud enough for a living-room dance floor.'
-        : '4.6★ — folds flat for storage; seats a full drinks-and-snacks spread.',
+        : a.name === 'Celebration Cake'
+          ? 'Two tiers, serves 24 — delivered tonight via Instacart priority.'
+          : '4.6★ — folds flat for storage; seats a full drinks-and-snacks spread.',
       fit: { fits: true, clearance_cm: a.libraryKey === 'desk' ? 34 : 58, in_room: true, nearest: a.libraryKey === 'desk' ? 'window bay trim' : 'Steel Frames' },
     })).concat([{
       title: 'Twinkle Star 300 LED Window Curtain String Lights',

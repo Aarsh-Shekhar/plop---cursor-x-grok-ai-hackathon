@@ -92,9 +92,15 @@ SHOP_SCHEMA = {
 }
 
 
-def _cutout_b64(scene_id: str, obj: dict) -> str:
-    filename = obj["geometry"]["textureUri"].split("/")[-1]
-    path = store.artifact_dir(scene_id) / filename
+def _cutout_b64(scene_id: str, obj: dict) -> str | None:
+    # demo-room / library objects carry no per-object cutout texture; identify
+    # falls back to a text-only pass for those
+    uri = obj.get("geometry", {}).get("textureUri")
+    if not uri:
+        return None
+    path = store.artifact_dir(scene_id) / uri.split("/")[-1]
+    if not path.exists():
+        return None
     img = Image.open(path).convert("RGB")
     img.thumbnail((512, 512), Image.LANCZOS)
     import io
@@ -108,6 +114,11 @@ def identify_object(scene: dict, obj: dict) -> dict:
     dims = obj["dimensions"]
     hint = (f"Depth-based size estimate (rough): ~{dims['width']}m wide x "
             f"~{dims['height']}m tall.")
+    if b64 is None:
+        hint += (f" No cutout image is available — identify from the name/label "
+                 f"alone: '{obj.get('name', obj.get('label', 'object'))}' "
+                 f"({obj.get('semantic', {}).get('description', '')}). Be honest "
+                 "that this is name-based, keep confidence moderate.")
     if scene["mode"] == "founder":
         return get_provider().generate_structured(
             f"This is a '{obj['label']}' component in a photo of a hardware system. {hint} "

@@ -43,7 +43,7 @@ export default function GoalPanel({ jobId, onClose }: { jobId: string; onClose: 
     // local pre-designed plans (e.g. party mode in the demo room) replay their
     // authored pipeline client-side — no server round trip
     if (jobId.startsWith('local-party:')) {
-      const goal = jobId.slice('local-party:'.length)
+      const goal = jobId.split(':').slice(2).join(':')
       const timers: number[] = []
       PARTY_STEPS.forEach((s, i) => {
         timers.push(window.setTimeout(() => {
@@ -87,15 +87,15 @@ export default function GoalPanel({ jobId, onClose }: { jobId: string; onClose: 
     const added: SceneObject[] = (opt.additions ?? []).map((a) => ({
       id: `obj_new_${Math.random().toString(36).slice(2, 8)}`,
       name: a.name, label: a.libraryKey, category: a.category, score: 1,
-      transform: { position: a.pos, rotationY: 0, scale: [1, 1, 1] },
+      transform: { position: a.pos, rotationY: a.rotationY ?? 0, scale: [1, 1, 1] },
       dimensions: {
         width: a.dims[0], height: a.dims[1], depth: a.dims[2],
-        source: 'manufacturer-spec', confidence: 0.95,
+        source: a.product ? 'manufacturer-spec' : 'user', confidence: 0.95,
       },
       geometry: { kind: 'library' as any, source: 'goal-plan', libraryKey: a.libraryKey } as any,
       appearance: { material: { type: 'original' }, dominantColors: [] },
       perception: { confidence: 1, floorStanding: true },
-      semantic: { description: `Hive-sourced for the plan: ${a.product.title}`, productMatches: [a.product] },
+      semantic: { description: a.product ? `Hive-sourced for the plan: ${a.product.title}` : `Party décor: ${a.name}`, productMatches: a.product ? [a.product] : [] },
       technical: {},
       state: { hidden: false, locked: false },
     }))

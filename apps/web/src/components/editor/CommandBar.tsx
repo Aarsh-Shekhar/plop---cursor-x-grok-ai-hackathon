@@ -96,7 +96,7 @@ export default function CommandBar() {
         setHiveScanQuery(q)
       } else if (commandMode === 'goal' && scene.id === 'scene_demo_room' && matchPartyGoal(t)) {
         // hosting/party goals in the demo room run the pre-designed plan
-        setGoalJobId(`local-party:${t}`)
+        setGoalJobId(`local-party:${Date.now()}:${t}`)
         pushChat('plop', 'Goal agent running — watch the pipeline in the panel.')
       } else if (commandMode === 'goal') {
         const r = await fetch(`${API_BASE}/api/scenes/${scene.id}/goal`, {

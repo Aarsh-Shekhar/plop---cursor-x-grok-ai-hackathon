@@ -125,6 +125,15 @@ function ModelObject({ obj, group }: { obj: SceneObject; group: RoomGroup }) {
     }
   }, [group])
 
+  // three's raycaster ignores `visible`, so a removed (hidden) object would
+  // still swallow clicks/hover meant for whatever is behind it — disable its
+  // meshes' raycast while hidden
+  useEffect(() => {
+    const noop = () => {}
+    for (const mesh of group.meshes)
+      (mesh as any).raycast = obj.state.hidden ? noop : THREE.Mesh.prototype.raycast
+  }, [obj.state.hidden, group])
+
   useEffect(() => {
     document.body.style.cursor = hovered ? (isSelected ? 'grab' : 'pointer') : 'auto'
     return () => { document.body.style.cursor = 'auto' }

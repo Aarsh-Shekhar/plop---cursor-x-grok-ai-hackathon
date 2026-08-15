@@ -85,7 +85,8 @@ function RoomInner() {
     const obj: SceneObject = {
       id: `obj_new_${Math.random().toString(36).slice(2, 8)}`,
       name: 'Rivet Aiden Accent Chair', label: 'armchair', category: 'seating', score: 1,
-      transform: { position: [center.x + 0.4, floor + 0.4, center.z + 0.6], rotationY: 0, scale: [1, 1, 1] },
+      // faces the coffee-table cluster like the rest of the seating
+      transform: { position: [center.x + 0.4, floor + 0.4, center.z + 0.6], rotationY: Math.PI, scale: [1, 1, 1] },
       dimensions: { width: 0.69, height: 0.8, depth: 0.75, source: 'manufacturer-spec', confidence: 0.95 },
       geometry: { kind: 'library' as any, source: 'hive-pick', libraryKey: 'armchair' } as any,
       appearance: { material: { type: 'original' }, dominantColors: [] },
