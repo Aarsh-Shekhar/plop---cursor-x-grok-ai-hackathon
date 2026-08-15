@@ -29,8 +29,9 @@ function RoomInner() {
   } = useEditor()
   const [shopTarget, setShopTarget] = useState<SceneObject | null>(null)
   const [seedError, setSeedError] = useState<string | null>(null)
-  const [beforePhoto, setBeforePhoto] = useState<string | null>(null)
   const [showBefore, setShowBefore] = useState(false)
+  // the real capture this twin was built from (photoreal source photo)
+  const beforePhoto = '/demo3d/room-photo.png'
 
   // Build the scene doc from the real GLB geometry, seed it to the backend
   // (so /commands and /hive/runs see it), then load it into the store.
@@ -76,52 +77,6 @@ function RoomInner() {
     return () => window.removeEventListener('keydown', onKey)
   }, [undo, redo])
 
-  // Capture the live viewport as an "iPhone photo" — warm cast, vignette,
-  // grain, timestamp — the BEFORE shot for the before/after story.
-  const captureBefore = () => {
-    const canvas = document.querySelector('.viewport-wrap canvas') as HTMLCanvasElement | null
-    if (!canvas) return
-    const w = 1170, h = 1560  // iPhone portrait-ish 3:4
-    const cv = document.createElement('canvas')
-    cv.width = w; cv.height = h
-    const ctx = cv.getContext('2d')!
-    // center-crop the live frame to portrait
-    const srcAR = canvas.width / canvas.height
-    const dstAR = w / h
-    let sw = canvas.width, sh = canvas.height, sx = 0, sy = 0
-    if (srcAR > dstAR) { sw = canvas.height * dstAR; sx = (canvas.width - sw) / 2 }
-    else { sh = canvas.width / dstAR; sy = (canvas.height - sh) / 2 }
-    ctx.drawImage(canvas, sx, sy, sw, sh, 0, 0, w, h)
-    // warm iPhone-ish cast + vignette + grain
-    ctx.globalCompositeOperation = 'overlay'
-    ctx.fillStyle = 'rgba(255, 190, 120, 0.10)'
-    ctx.fillRect(0, 0, w, h)
-    ctx.globalCompositeOperation = 'source-over'
-    const vg = ctx.createRadialGradient(w / 2, h / 2, h * 0.35, w / 2, h / 2, h * 0.75)
-    vg.addColorStop(0, 'rgba(0,0,0,0)')
-    vg.addColorStop(1, 'rgba(0,0,0,0.28)')
-    ctx.fillStyle = vg
-    ctx.fillRect(0, 0, w, h)
-    const noise = ctx.getImageData(0, 0, w, h)
-    for (let i = 0; i < noise.data.length; i += 16) {
-      const n = (Math.random() - 0.5) * 10
-      noise.data[i] += n; noise.data[i + 1] += n; noise.data[i + 2] += n
-    }
-    ctx.putImageData(noise, 0, 0)
-    ctx.fillStyle = 'rgba(255,255,255,0.85)'
-    ctx.font = '28px -apple-system, sans-serif'
-    ctx.fillText(new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), 40, h - 44)
-    const dataUrl = cv.toDataURL('image/jpeg', 0.88)
-    setBeforePhoto(dataUrl)
-    setShowBefore(true)
-    // persist for the hackathon submission (served at /demo3d/room-photo.png)
-    fetch(`${API_BASE}/api/demo/photo`, {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ dataUrl: cv.toDataURL('image/png') }),
-    }).catch(() => {})
-    pushChat('plop', 'Captured the "before" photo — toggle Before/After to compare the phone shot with the live twin.')
-  }
-
   const placeItem = () => {
     if (!scene) return
     const anchor = scene.objects.find((o) => o.id === selectedId) ?? null
@@ -151,10 +106,10 @@ function RoomInner() {
             <button onClick={placeItem} title="Place a new item in the room">+ Place item</button>
           </div>
           <div className="tool-group">
-            <button onClick={() => { if (!beforePhoto) captureBefore(); else setShowBefore(!showBefore) }}
+            <button onClick={() => setShowBefore(!showBefore)}
               className={showBefore ? 'on' : ''}
-              title="Capture an iPhone-style photo of the room and flip between BEFORE (photo) and AFTER (editable 3D twin)">
-              📸 {beforePhoto ? (showBefore ? 'After' : 'Before') : 'Before/After'}
+              title="Flip between the original phone photo and the editable 3D twin built from it">
+              📸 {showBefore ? 'Back to 3D twin' : 'Original photo'}
             </button>
           </div>
           <div className="tool-group">
@@ -180,15 +135,10 @@ function RoomInner() {
         <SceneTree />
         <div className="viewport-wrap">
           {scene && <RoomViewport groups={groups} staticMeshes={staticMeshes} bounds={bounds} />}
-          {showBefore && beforePhoto && (
+          {showBefore && (
             <div className="beforeafter-overlay" onClick={() => setShowBefore(false)}>
-              <span className="beforeafter-tag">BEFORE — iPHONE PHOTO · tap for the 3D twin</span>
-              <img src={beforePhoto} alt="Before: phone photo of the room" />
-            </div>
-          )}
-          {!showBefore && beforePhoto && (
-            <div className="beforeafter-tag" style={{ position: 'absolute', top: 14, zIndex: 5 }}>
-              AFTER — EDITABLE 3D TWIN
+              <span className="beforeafter-tag">ORIGINAL PHONE PHOTO · tap for the 3D twin</span>
+              <img src={beforePhoto} alt="Original phone photo of the room" />
             </div>
           )}
           <CommandBar />

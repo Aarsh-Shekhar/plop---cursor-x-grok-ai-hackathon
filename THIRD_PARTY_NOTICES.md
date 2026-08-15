@@ -72,3 +72,8 @@ weights carry their own terms).
 - `apps/web/public/demo/` — Shapespark CC0 room scene + matched render, and
   `DemoRoom3D`/`demoFurniture` components, pulled from this team's upstream
   repo (Abhicodes8/plop, commits d78ad48..180f5de).
+- `apps/web/public/demo3d/room-photo.png` (and `-thumb`) — path-traced
+  reference render of the same scene ("The White Room" by **Jay-Artist**,
+  CC-BY 3.0), via [Benedikt Bitterli's Rendering Resources]
+  (https://benedikt-bitterli.me/resources/), tone-adjusted to read as a
+  phone capture for the demo flow.
