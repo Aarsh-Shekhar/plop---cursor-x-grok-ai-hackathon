@@ -5,7 +5,6 @@
 import { Suspense, useEffect, useState } from 'react'
 import * as THREE from 'three'
 import { API_BASE } from '../lib/api'
-import { makeProxyObject } from '../lib/candidates'
 import { useEditor } from '../state/editor'
 import RoomViewport, { groupsToObjects, useRoomGroups } from '../components/room/RoomViewport'
 import SceneTree from '../components/editor/SceneTree'
@@ -77,19 +76,34 @@ function RoomInner() {
     return () => window.removeEventListener('keydown', onKey)
   }, [undo, redo])
 
+  // Place the hive's standing pick for this room: a real Amazon chair, at its
+  // listed dimensions, rendered from the object library — never a gray box.
   const placeItem = () => {
     if (!scene) return
-    const anchor = scene.objects.find((o) => o.id === selectedId) ?? null
     const center = bounds.getCenter(new THREE.Vector3())
-    const proxy = makeProxyObject(
-      { title: 'New item (60×60×40 cm)', width_cm: 60, height_cm: 60, depth_cm: 40 },
-      anchor,
-      [center.x, 0, center.z],
-      scene.environment.floorY,
-    )
-    applyEdit((objects) => [...objects, proxy])
-    select(proxy.id)
-    pushChat('plop', 'Placed a 60×60×40 cm item — drag it into position, or Replace/Compare to make it a real product.')
+    const floor = scene.environment.floorY
+    const obj: SceneObject = {
+      id: `obj_new_${Math.random().toString(36).slice(2, 8)}`,
+      name: 'Rivet Aiden Accent Chair', label: 'armchair', category: 'seating', score: 1,
+      transform: { position: [center.x + 0.4, floor + 0.4, center.z + 0.6], rotationY: 0, scale: [1, 1, 1] },
+      dimensions: { width: 0.69, height: 0.8, depth: 0.75, source: 'manufacturer-spec', confidence: 0.95 },
+      geometry: { kind: 'library' as any, source: 'hive-pick', libraryKey: 'armchair' } as any,
+      appearance: { material: { type: 'original' }, dominantColors: [] },
+      perception: { confidence: 1, floorStanding: true },
+      semantic: {
+        description: 'Hive pick for this room',
+        productMatches: [{
+          title: 'Rivet Aiden Mid-Century Modern Tufted Leather Accent Chair',
+          price_usd: 389.99, url: 'https://www.amazon.com/dp/B073W7RNJZ', retailer: 'Amazon',
+          width_cm: 69, height_cm: 80, depth_cm: 75, rating: 4.5,
+        }],
+      },
+      technical: {},
+      state: { hidden: false, locked: false },
+    }
+    applyEdit((objects) => [...objects, obj])
+    select(obj.id)
+    pushChat('hive', 'Placed the hive pick: Rivet Aiden Tufted Leather Accent Chair — $389.99 on Amazon, listed 69×80×75 cm applied. Drag it into position.')
   }
 
   if (seedError) {

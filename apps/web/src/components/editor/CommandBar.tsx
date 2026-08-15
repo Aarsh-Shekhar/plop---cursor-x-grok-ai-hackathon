@@ -7,6 +7,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { API_BASE, sendCommand } from '../../lib/api'
 import { matchLibrary } from '../../lib/objectLibrary'
+import { matchPartyGoal } from '../../lib/partyPlan'
 import { useEditor } from '../../state/editor'
 import type { SceneObject } from '../../lib/types'
 
@@ -93,6 +94,10 @@ export default function CommandBar() {
         }
         pushChat('hive', 'Deploying the swarm — nine workers, nine stores.')
         setHiveScanQuery(q)
+      } else if (commandMode === 'goal' && scene.id === 'scene_demo_room' && matchPartyGoal(t)) {
+        // hosting/party goals in the demo room run the pre-designed plan
+        setGoalJobId(`local-party:${t}`)
+        pushChat('plop', 'Goal agent running — watch the pipeline in the panel.')
       } else if (commandMode === 'goal') {
         const r = await fetch(`${API_BASE}/api/scenes/${scene.id}/goal`, {
           method: 'POST', headers: { 'content-type': 'application/json' },

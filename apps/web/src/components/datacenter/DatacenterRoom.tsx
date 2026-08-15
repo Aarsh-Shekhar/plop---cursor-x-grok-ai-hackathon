@@ -432,8 +432,8 @@ export default function DatacenterRoom({ onBack, onZoomPc }: { onBack: () => voi
                 </span>
                 {partMeta && partMeta.category === 'compute' && onZoomPc && (
                   <button className="small primary" onClick={onZoomPc}
-                    title="Zoom into this server — opens the component-level PC digital twin">
-                    🔍 zoom into server
+                    title="Expand this server into its component-level PC digital twin — airflow, exploded view, part swaps">
+                    ⤢ expand server
                   </button>
                 )}
                 {partMeta && (

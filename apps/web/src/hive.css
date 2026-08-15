@@ -294,3 +294,67 @@
   position: absolute; z-index: 8; width: 330px;
   animation: cell-in .25s ease both;
 }
+
+/* ---- live agent previews inside worker hexes ---- */
+.hv-agent-preview {
+  position: relative; width: 128px; height: 86px; margin: 4px 0 2px;
+  border-radius: 7px; overflow: hidden; background: #fdfdfc;
+  border: 1px solid rgba(0,0,0,.25);
+  box-shadow: 0 4px 14px rgba(0,0,0,.35);
+  text-align: left; flex: none;
+}
+.hv-agent-preview.done { opacity: .55; height: 52px; }
+.hv-ap-chrome {
+  display: flex; align-items: center; gap: 3px; height: 12px;
+  background: #e8e6e1; padding: 0 5px;
+}
+.hv-ap-dot { width: 4px; height: 4px; border-radius: 50%; background: #c2beb6; }
+.hv-ap-url {
+  margin-left: 3px; flex: 1; background: #fff; border-radius: 5px;
+  font: 600 5.5px/8px ui-monospace, monospace; color: #6a6660;
+  padding: 0 4px; height: 8px; overflow: hidden;
+}
+.hv-ap-header { height: 10px; background: var(--brand, #d4940a); }
+.hv-ap-search {
+  height: 9px; margin: 3px 6px; border: 1px solid #d7d3cb; border-radius: 4px;
+  position: relative; overflow: hidden; background: #fff;
+}
+.hv-ap-search span {
+  position: absolute; left: 3px; top: 2px; height: 3px; width: 0;
+  background: #a9a49b; border-radius: 2px;
+  animation: hv-ap-type 2.6s ease-out infinite;
+}
+@keyframes hv-ap-type { 0% { width: 0 } 30% { width: 62% } 100% { width: 62% } }
+.hv-ap-rows {
+  display: flex; flex-direction: column; gap: 3px; padding: 0 6px;
+  animation: hv-ap-scroll 3.2s ease-in-out 1.2s infinite alternate;
+}
+@keyframes hv-ap-scroll { from { transform: translateY(0) } to { transform: translateY(-26px) } }
+.hv-ap-row { display: flex; align-items: center; gap: 3px; height: 12px; }
+.hv-ap-thumb { width: 11px; height: 11px; border-radius: 2px; background: #ded9d1; flex: none; }
+.hv-ap-lines { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.hv-ap-lines i { display: block; height: 2.5px; border-radius: 2px; background: #d3cec6; width: 92%; }
+.hv-ap-lines i + i { width: 60%; }
+.hv-ap-price { width: 14px; height: 4px; border-radius: 2px; background: #b8b2a8; flex: none; }
+.hv-ap-row.hit .hv-ap-thumb { background: var(--brand, #d4940a); opacity: .75; }
+.hv-ap-row.hit { outline: 1px solid var(--brand, #d4940a); outline-offset: 1px; border-radius: 2px;
+  animation: hv-ap-hit 3.2s ease-in-out 1.2s infinite alternate; }
+@keyframes hv-ap-hit { 0%, 55% { background: transparent } 75%, 100% { background: rgba(212,148,10,.14) } }
+.hv-ap-cursor {
+  position: absolute; width: 7px; height: 7px; z-index: 3;
+  border-left: 6px solid #1b1b1b; border-bottom: 5px solid transparent;
+  border-top: 1px solid transparent;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,.4));
+  animation: hv-ap-cursor 2.8s ease-in-out infinite;
+}
+@keyframes hv-ap-cursor {
+  0%   { left: 18px; top: 26px; }
+  22%  { left: 96px; top: 27px; }   /* to the search bar */
+  30%  { left: 96px; top: 27px; transform: scale(.8); }
+  50%  { left: 40px; top: 48px; transform: scale(1); }
+  68%  { left: 70px; top: 62px; }   /* down the results */
+  80%  { left: 52px; top: 56px; transform: scale(.8); }  /* click the hit row */
+  88%  { left: 52px; top: 56px; transform: scale(1); }
+  100% { left: 18px; top: 26px; }
+}
+.hv-hex-add { font-size: 10.5px; padding: 4px 10px; margin-top: 4px; }

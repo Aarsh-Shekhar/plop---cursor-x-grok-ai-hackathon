@@ -8,19 +8,46 @@ import { useMemo, useRef, useState, useEffect } from 'react'
 import '../../hive.css'
 import { API_BASE } from '../../lib/api'
 import { makeProxyObject } from '../../lib/candidates'
+import { matchLibrary } from '../../lib/objectLibrary'
 import { useEditor } from '../../state/editor'
+import type { SceneObject } from '../../lib/types'
 
-const RETAILERS: { name: string; domain: string; emoji: string }[] = [
-  { name: 'Amazon', domain: 'amazon.com', emoji: '📦' },
-  { name: 'Wayfair', domain: 'wayfair.com', emoji: '🛋' },
-  { name: 'IKEA', domain: 'ikea.com', emoji: '🪑' },
-  { name: 'Target', domain: 'target.com', emoji: '🎯' },
-  { name: 'Walmart', domain: 'walmart.com', emoji: '🛒' },
-  { name: 'West Elm', domain: 'westelm.com', emoji: '🏠' },
-  { name: 'CB2', domain: 'cb2.com', emoji: '✨' },
-  { name: 'Pottery Barn', domain: 'potterybarn.com', emoji: '🏺' },
-  { name: 'Etsy', domain: 'etsy.com', emoji: '🧶' },
+const RETAILERS: { name: string; domain: string; emoji: string; brand?: string }[] = [
+  { name: 'Amazon', domain: 'amazon.com', emoji: '📦', brand: '#ff9900' },
+  { name: 'Wayfair', domain: 'wayfair.com', emoji: '🛋', brand: '#7b189f' },
+  { name: 'IKEA', domain: 'ikea.com', emoji: '🪑', brand: '#0058a3' },
+  { name: 'Target', domain: 'target.com', emoji: '🎯', brand: '#cc0000' },
+  { name: 'Walmart', domain: 'walmart.com', emoji: '🛒', brand: '#0071dc' },
+  { name: 'West Elm', domain: 'westelm.com', emoji: '🏠', brand: '#8c6e4a' },
+  { name: 'CB2', domain: 'cb2.com', emoji: '✨', brand: '#3d3d3d' },
+  { name: 'Pottery Barn', domain: 'potterybarn.com', emoji: '🏺', brand: '#5e4b3a' },
+  { name: 'Etsy', domain: 'etsy.com', emoji: '🧶', brand: '#f1641e' },
 ]
+
+/** Mini live-view of what a worker is doing: a tiny storefront with a search
+ *  bar, result rows scrolling by, and the agent's cursor moving/clicking. */
+function AgentPreview({ domain, brand, done }: { domain: string; brand: string; done?: boolean }) {
+  return (
+    <div className={`hv-agent-preview ${done ? 'done' : ''}`} style={{ ['--brand' as any]: brand }}>
+      <div className="hv-ap-chrome">
+        <span className="hv-ap-dot" /><span className="hv-ap-dot" /><span className="hv-ap-dot" />
+        <span className="hv-ap-url">{domain}</span>
+      </div>
+      <div className="hv-ap-header" />
+      <div className="hv-ap-search"><span /></div>
+      <div className="hv-ap-rows">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className={`hv-ap-row ${i === 2 ? 'hit' : ''}`}>
+            <span className="hv-ap-thumb" />
+            <span className="hv-ap-lines"><i /><i /></span>
+            <span className="hv-ap-price" />
+          </div>
+        ))}
+      </div>
+      {!done && <div className="hv-ap-cursor" />}
+    </div>
+  )
+}
 
 // scattered field positions (%) — organic honeycomb spread like the OG UI
 const HEX_POS: { left: number; top: number }[] = [
@@ -61,7 +88,7 @@ interface Cell {
 export default function HiveScan({ initialQuery, onClose, retailers }: {
   initialQuery: string
   onClose: () => void
-  retailers?: { name: string; domain: string; emoji: string }[]
+  retailers?: { name: string; domain: string; emoji: string; brand?: string }[]
 }) {
   const RETAILERS_ACTIVE = retailers ?? RETAILERS
   const [query, setQuery] = useState(initialQuery)
@@ -130,20 +157,50 @@ export default function HiveScan({ initialQuery, onClose, retailers }: {
     }
   }, [])
 
-  const placeInScene = (r: ScanResult) => {
+  // Insert a worker's find into the room as a real library mesh at listed
+  // dimensions (falls back to a labeled proxy only if nothing matches).
+  const addToRoom = (r: ScanResult, close: boolean) => {
     if (!scene) return
     const anchor = scene.objects.find((o) => o.id === selectedId) ?? null
-    const proxy = makeProxyObject(
-      { title: r.title, price_usd: r.price_usd ?? undefined, url: r.url,
-        width_cm: r.width_cm, height_cm: r.height_cm, depth_cm: r.depth_cm,
-        why: r.reviews_summary },
-      anchor, [0, 0, -2.5], scene.environment.floorY,
-    )
-    applyEdit((objects) => [...objects, proxy])
-    select(proxy.id)
-    pushChat('plop', `Placed "${r.title.slice(0, 50)}" — ${r.width_cm != null ? 'listed dimensions' : 'approximate size'}. Undo with ⌘Z.`)
-    onClose()
+    const lib = matchLibrary(`${r.title} ${query}`)
+    let obj: SceneObject
+    if (lib) {
+      const w = (r.width_cm ?? lib.dims[0] * 100) / 100
+      const h = (r.height_cm ?? lib.dims[1] * 100) / 100
+      const d = (r.depth_cm ?? lib.dims[2] * 100) / 100
+      const floor = scene.environment.floorY
+      const base: [number, number, number] = anchor
+        ? [anchor.transform.position[0] + anchor.dimensions.width / 2 + w / 2 + 0.2, floor + h / 2, anchor.transform.position[2]]
+        : [0.3, floor + h / 2, 2.0]
+      obj = {
+        id: `obj_new_${Math.random().toString(36).slice(2, 8)}`,
+        name: r.title.slice(0, 42), label: lib.key, category: lib.category, score: 1,
+        transform: { position: base, rotationY: 0, scale: [1, 1, 1] },
+        dimensions: {
+          width: w, height: h, depth: d,
+          source: r.width_cm != null ? 'manufacturer-spec' : 'inferred', confidence: 0.95,
+        },
+        geometry: { kind: 'library' as any, source: 'hive-swarm', libraryKey: lib.key } as any,
+        appearance: { material: { type: 'original' }, dominantColors: [] },
+        perception: { confidence: 1, floorStanding: true },
+        semantic: { description: r.reviews_summary, productMatches: [r] },
+        technical: {},
+        state: { hidden: false, locked: false },
+      }
+    } else {
+      obj = makeProxyObject(
+        { title: r.title, price_usd: r.price_usd ?? undefined, url: r.url,
+          width_cm: r.width_cm, height_cm: r.height_cm, depth_cm: r.depth_cm,
+          why: r.reviews_summary },
+        anchor, [0, 0, -2.5], scene.environment.floorY,
+      )
+    }
+    applyEdit((objects) => [...objects, obj])
+    select(obj.id)
+    pushChat('hive', `Added "${r.title.slice(0, 50)}"${r.price_usd != null ? ` — $${r.price_usd}` : ''} to the room${r.width_cm != null ? ' at listed dimensions' : ''}. Undo with ⌘Z.`)
+    if (close) onClose()
   }
+  const placeInScene = (r: ScanResult) => addToRoom(r, true)
 
   const stats = useMemo(() => {
     const list = [...cells.values()]
@@ -273,18 +330,29 @@ export default function HiveScan({ initialQuery, onClose, retailers }: {
               onClick={() => setExpanded(expanded === r.name ? null : r.name)}
             >
               <div className="hv-hex-body">
-                <span style={{ fontSize: 20 }}>{r.emoji}</span>
-                <span className="hv-hex-name">{r.name}</span>
-                {cell.status === 'running' && <><div className="hv-spinner" /><span className="hv-hex-status">scanning {r.domain}</span></>}
+                <span className="hv-hex-name">{r.emoji} {r.name}</span>
+                {cell.status === 'running' && (
+                  <>
+                    <AgentPreview domain={r.domain} brand={r.brand ?? '#d4940a'} />
+                    <span className="hv-hex-status">agent browsing {r.domain}…</span>
+                  </>
+                )}
                 {cell.status === 'queued' && <span className="hv-hex-status">◷ queued</span>}
                 {cell.status === 'completed' && cell.result && (
                   <>
+                    <AgentPreview domain={r.domain} brand={r.brand ?? '#d4940a'} done />
                     <span className="hv-hex-title">{cell.result.title}</span>
                     <span className="hv-hex-price">
                       {cell.result.price_usd != null ? `$${cell.result.price_usd.toLocaleString()}` : ''}
                       {cell.result.rating != null ? `  ${cell.result.rating}★` : ''}
                     </span>
                     <span className="hv-hex-status">{Math.round(cell.result.match_confidence * 100)}% match · tap for details</span>
+                    {scene && cell.result.found && (
+                      <button className="hv-btn hv-hex-add"
+                        onClick={(e) => { e.stopPropagation(); addToRoom(cell.result!, false) }}>
+                        + add to room
+                      </button>
+                    )}
                   </>
                 )}
                 {cell.status === 'failed' && (

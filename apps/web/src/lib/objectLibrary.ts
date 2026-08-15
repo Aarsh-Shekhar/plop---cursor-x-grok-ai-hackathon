@@ -105,7 +105,7 @@ export const LIBRARY: LibraryItem[] = [
   },
   {
     key: 'desk', label: 'Desk', category: 'table',
-    synonyms: ['desk', 'work desk', 'standing desk', 'workstation', 'table'],
+    synonyms: ['desk', 'work desk', 'standing desk', 'workstation', 'table', 'folding table', 'banquet table', 'buffet table'],
     dims: [1.4, 0.75, 0.7],
     build: () => {
       const g = new THREE.Group()
@@ -247,6 +247,24 @@ export const LIBRARY: LibraryItem[] = [
           g.add(box(0.5, 0.2, 0.02, mat.darkWood(), -0.28 + c * 0.56, 0.25 - r * 0.25, 0.23))
           g.add(cyl(0.015, 0.03, mat.metal(), -0.28 + c * 0.56, 0.25 - r * 0.25, 0.25))
         }
+      return g
+    },
+  },
+  {
+    key: 'speaker', label: 'Party Speaker', category: 'electronics',
+    synonyms: ['speaker', 'party speaker', 'partybox', 'bluetooth speaker', 'soundbar', 'subwoofer'],
+    dims: [0.34, 1.05, 0.32],
+    build: () => {
+      const g = new THREE.Group()
+      g.add(box(0.34, 1.05, 0.32, mat.black()))
+      // woofer + tweeter cones
+      g.add(cyl(0.11, 0.02, mat.metal(), 0, -0.22, 0.16).rotateX(Math.PI / 2))
+      g.add(cyl(0.06, 0.02, mat.metal(), 0, 0.18, 0.16).rotateX(Math.PI / 2))
+      // LED ring accent
+      g.add(new THREE.Mesh(new THREE.TorusGeometry(0.115, 0.008, 8, 28),
+        new THREE.MeshStandardMaterial({ color: 0x8b5cf6, emissive: 0x7c3aed, emissiveIntensity: 1.2 }))
+        .translateY(-0.22).translateZ(0.165))
+      g.add(box(0.3, 0.02, 0.26, mat.metal(), 0, 0.5, 0))   // handle plate
       return g
     },
   },

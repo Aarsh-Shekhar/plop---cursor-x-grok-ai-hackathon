@@ -77,3 +77,7 @@ weights carry their own terms).
   CC-BY 3.0), via [Benedikt Bitterli's Rendering Resources]
   (https://benedikt-bitterli.me/resources/), tone-adjusted to read as a
   phone capture for the demo flow.
+- `apps/web/public/demo3d/dc-photo.png` (and `-thumb`) — server-rack photo by
+  **Taylor Vick** on [Unsplash](https://unsplash.com/photos/ef010cbdcc31)
+  (Unsplash License), tone-adjusted to read as a phone capture for the
+  datacenter demo flow.
