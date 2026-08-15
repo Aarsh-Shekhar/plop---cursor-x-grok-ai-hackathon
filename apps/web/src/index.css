@@ -139,15 +139,23 @@ input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-so
   color: #59606c; font-size: 14px;
 }
 
-.story-scroller { height: 560vh; position: relative; }
-/* fixed, not sticky: sticky subtrees with animated content intermittently
-   stop painting (white screen) in Chromium */
-.story-fixed {
-  position: fixed; inset: 0; z-index: 40;
-  background: var(--bg);
+/* product story: plain in-flow sections — no sticky/fixed scroll hijacking */
+.story-section {
   display: grid; grid-template-columns: minmax(300px, 420px) 1fr;
-  gap: 48px; align-items: center; padding: 0 6vw;
+  gap: 48px; align-items: center; padding: 9vh 6vw;
+  background: var(--bg); color: var(--text);
 }
+.story-section.flip { grid-template-columns: 1fr minmax(300px, 420px); }
+.story-section.flip .story-caption { order: 2; }
+.story-section.flip .mac-frame { order: 1; justify-self: start; }
+.story-section .mac-frame { justify-self: end; }
+/* Sections are ALWAYS visible. Never gate content behind an observer-driven
+   opacity: throttled/hidden tabs skip IntersectionObserver callbacks and the
+   page reads as blank. The .visible class only adds a subtle settle motion. */
+.reveal { opacity: 1; }
+.reveal.visible .story-caption { animation: settle .5s ease; }
+@keyframes settle { from { opacity: .35; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .reveal.visible .story-caption { animation: none; } }
 .story-caption .story-step { font-family: var(--mono); font-size: 12px; color: var(--text-dim); margin-bottom: 12px; }
 .story-caption h2 { font-size: clamp(26px, 3vw, 38px); letter-spacing: -0.02em; margin-bottom: 14px; }
 .story-caption p { font-size: 16px; line-height: 1.55; color: var(--text-dim); max-width: 40ch; }
@@ -200,9 +208,14 @@ input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-so
   width: 104px; height: 90px;
   clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
   background: #2a2208; border: 1px solid #4a3c10;
-  display: flex; align-items: center; justify-content: center;
+  display: flex; flex-direction: column; gap: 3px;
+  align-items: center; justify-content: center;
   animation: hexpulse 1.6s ease-in-out infinite;
 }
+.hex-name { color: #f5d76e; font-size: 12px; font-weight: 700; }
+.hive-demo.static { position: relative; height: 100%; }
+.demo-cutout.zebrafied { filter: grayscale(1) contrast(1.6); }
+.detect-box.visible-box { opacity: 1; }
 @keyframes hexpulse { 0%, 100% { background: #2a2208; } 50% { background: #3d3009; } }
 .hex-status { color: #e8c96a; font-size: 11px; font-weight: 600; }
 .hive-demo-task { color: #b09a4f; font-family: var(--mono); font-size: 13px; }

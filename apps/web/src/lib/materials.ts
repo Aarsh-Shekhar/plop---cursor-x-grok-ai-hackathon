@@ -44,11 +44,11 @@ function patternValue(
 
 /** Compose the edited texture for an object from its original cutout image. */
 export function applyMaterial(
-  source: HTMLImageElement, material: MaterialSpec,
+  source: HTMLImageElement | ImageBitmap, material: MaterialSpec,
 ): HTMLCanvasElement {
   const canvas = document.createElement('canvas')
-  canvas.width = source.naturalWidth
-  canvas.height = source.naturalHeight
+  canvas.width = source instanceof ImageBitmap ? source.width : source.naturalWidth
+  canvas.height = source instanceof ImageBitmap ? source.height : source.naturalHeight
   const ctx = canvas.getContext('2d')!
   ctx.drawImage(source, 0, 0)
   if (material.type === 'original') return canvas
@@ -98,16 +98,11 @@ export async function getObjectTexture(
   const key = materialCacheKey(objectId, material)
   const cached = textureCache.get(key)
   if (cached) return cached
-  // '?canvas=1' keeps these CORS-mode loads on a separate cache key from any
-  // plain <img> loads of the same file (a cached non-CORS response would
-  // otherwise fail the crossOrigin load and silently drop the texture)
-  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-    const el = new Image()
-    el.crossOrigin = 'anonymous'
-    el.onload = () => resolve(el)
-    el.onerror = reject
-    el.src = textureUrl + (textureUrl.includes('?') ? '&' : '?') + 'canvas=1'
-  })
+  // fetch → blob → ImageBitmap: never touches the browser image cache, so a
+  // cached non-CORS <img> response can't taint or fail the texture load
+  const res = await fetch(textureUrl, { mode: 'cors', cache: 'reload' })
+  if (!res.ok) throw new Error(`texture fetch failed: ${res.status}`)
+  const img = await createImageBitmap(await res.blob())
   const canvas = applyMaterial(img, material)
   const tex = new THREE.CanvasTexture(canvas)
   tex.colorSpace = THREE.SRGBColorSpace

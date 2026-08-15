@@ -43,33 +43,105 @@ def serialize_scene_context(scene: dict, selected_ids: list[str]) -> str:
 GSUITE_HINTS = ("gmail", "email", "e-mail", "calendar", "google doc", "google sheet",
                 "spreadsheet", "google slide", "presentation", "google form", "google drive")
 
+MAX_WORKERS = 9
 
-def pick_pipeline(prompt: str) -> str:
-    """PLOP tasks are research unless they clearly need a GSuite pipeline.
+SWARM_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "workers": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string",
+                             "description": "Short worker label, e.g. 'Amazon scan' or 'Price analysis'"},
+                    "instruction": {"type": "string",
+                                    "description": "Self-contained research instruction for this one worker"},
+                },
+                "required": ["name", "instruction"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    "required": ["workers"],
+    "additionalProperties": False,
+}
 
-    Auto-routing sends shopping-style prompts to the browser pipeline, which
-    needs Browserbase/OAuth infra — those runs fail on a plain dev setup, so
-    we pin the DuckDuckGo research pipeline that runs everywhere.
-    """
-    lower = prompt.lower()
-    if any(h in lower for h in GSUITE_HINTS):
-        return ""  # let Hive's own router decide; these need its GSuite flows
-    return "research"
+SWARM_SYSTEM = """You decompose a user's request into parallel worker tasks for an
+agent swarm. Each worker is independent and does web research on ONE angle.
+
+For product/shopping requests: one worker PER RETAILER/MARKETPLACE (pick the most
+relevant of: Amazon, eBay, Wayfair, IKEA, Target, Walmart, Etsy, Home Depot,
+Facebook Marketplace, or domain-specific vendors like Newegg/Digi-Key/McMaster for
+hardware), each instructed to find specific in-stock products on that retailer with
+exact prices, dimensions and URLs — plus ONE worker doing overall price/value
+analysis across the market.
+
+For general research: 4-7 workers each covering a distinct angle (specs, reviews,
+alternatives, pricing, compatibility, availability).
+
+Each instruction must be fully self-contained (the worker sees nothing else),
+mention its retailer/angle explicitly, and demand concrete items with prices,
+dimensions and URLs — never generic category advice. 5-9 workers total."""
+
+
+def decompose_swarm(prompt: str, context: str) -> list[dict]:
+    """One @hive request -> many per-source worker tasks (one hexagon each)."""
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from providers import get_provider
+
+    try:
+        result = get_provider().generate_structured(
+            f"User request: {prompt}\n\nScene context (include the relevant "
+            f"constraints in every worker's instruction):\n{context}",
+            SWARM_SCHEMA, system=SWARM_SYSTEM, max_tokens=2500,
+        )
+        workers = result.get("workers", [])[:MAX_WORKERS]
+    except Exception:
+        workers = []
+    if len(workers) < 2:
+        # decomposition failed — fall back to a fixed retailer fan-out so the
+        # swarm still swarms
+        retailers = ["Amazon", "eBay", "Wayfair", "Target", "Walmart", "Etsy"]
+        workers = [{
+            "name": f"{r} scan",
+            "instruction": f"Search {r} specifically for: {prompt}. Report concrete "
+                           f"in-stock products with exact prices, dimensions and URLs. "
+                           f"{context}",
+        } for r in retailers] + [{
+            "name": "Price analysis",
+            "instruction": f"Research typical market pricing and what constitutes good "
+                           f"value for: {prompt}. {context}",
+        }]
+    return workers
 
 
 async def create_run(prompt: str, scene: dict | None, selected_ids: list[str]) -> dict:
-    description = prompt
-    if scene is not None:
-        description = f"{prompt}\n\n{serialize_scene_context(scene, selected_ids)}"
+    context = serialize_scene_context(scene, selected_ids) if scene is not None else ""
+    lower = prompt.lower()
+    if any(h in lower for h in GSUITE_HINTS):
+        # GSuite-flavored tasks go through Hive's own router untouched (they
+        # need its Gmail/Docs pipelines and OAuth)
+        tasks = [{"description": f"{prompt}\n\n{context}".strip(),
+                  "pipeline_type": "", "url": "", "params": {}}]
+    else:
+        import asyncio
+        workers = await asyncio.to_thread(decompose_swarm, prompt, context)
+        # pipeline_type "research" pins Hive's DuckDuckGo pipeline, which runs
+        # without Browserbase/OAuth; each task becomes its own job/hexagon
+        tasks = [{
+            "description": f"[{w['name']}] {w['instruction']}",
+            "pipeline_type": "research", "url": "", "params": {},
+        } for w in workers]
     async with httpx.AsyncClient(timeout=30) as client:
-        r = await client.post(f"{HIVE_API}/api/runs", json={
-            "tasks": [{"description": description, "pipeline_type": pick_pipeline(prompt),
-                       "url": "", "params": {}}],
-        })
+        r = await client.post(f"{HIVE_API}/api/runs", json={"tasks": tasks})
         r.raise_for_status()
         run = r.json()
     return {
         "run": run,
+        "workerCount": len(tasks),
         "hiveUrl": f"{HIVE_UI}/?run={run['id']}",
     }
 

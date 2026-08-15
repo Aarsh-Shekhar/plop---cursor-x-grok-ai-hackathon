@@ -147,9 +147,19 @@ export default function Viewport({ scene }: { scene: Scene }) {
         enabled={!dragging}
         enableDamping
         dampingFactor={0.12}
+        rotateSpeed={0.55}
+        panSpeed={0.8}
+        zoomToCursor
         target={[0, 0, -(scene.capture.depthMinM + scene.capture.depthMaxM) / 2]}
-        minDistance={0.2}
-        maxDistance={30}
+        // stay in the capture hemisphere: a single-view reconstruction reads
+        // best from near the original viewpoint, so clamp orbit rather than
+        // letting the camera swing behind the depth shell
+        minPolarAngle={Math.PI * 0.18}
+        maxPolarAngle={Math.PI * 0.62}
+        minAzimuthAngle={-Math.PI * 0.38}
+        maxAzimuthAngle={Math.PI * 0.38}
+        minDistance={0.35}
+        maxDistance={Math.max(6, scene.capture.depthMaxM * 2)}
       />
     </Canvas>
   )

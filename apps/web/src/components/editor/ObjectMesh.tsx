@@ -36,9 +36,10 @@ export default function ObjectMesh({ obj }: { obj: SceneObject }) {
   }, [obj.id, obj.geometry.textureUri, obj.appearance.material])
 
   useEffect(() => {
-    document.body.style.cursor = hovered ? 'grab' : 'auto'
+    // pointer = clickable, grab = draggable (already selected)
+    document.body.style.cursor = hovered ? (isSelected ? 'grab' : 'pointer') : 'auto'
     return () => { document.body.style.cursor = 'auto' }
-  }, [hovered])
+  }, [hovered, isSelected])
 
   // all hooks must be above this line — an early return before a hook
   // (liveRef below used to sit lower) crashes React when `hidden` flips
@@ -71,6 +72,10 @@ export default function ObjectMesh({ obj }: { obj: SceneObject }) {
 
   const startDrag = (e: any) => {
     if (obj.state.locked) return
+    // Orbit-first: an unselected object never grabs the pointer — the first
+    // click selects it (camera drag stays free), dragging moves it only once
+    // it's selected. This keeps traversal from "sticking" to objects.
+    if (!isSelected) return
     e.stopPropagation()
     select(obj.id)
     const vertical = e.shiftKey

@@ -57,7 +57,9 @@ export default function Editor() {
   return (
     <div className="editor" data-mode={mode}>
       <header className="editor-header">
-        <Link to="/projects" className="brand">PLOP</Link>
+        {/* full page load on exit: tears down the WebGL context so long
+            editor sessions can't degrade the rest of the site's compositing */}
+        <a href="/projects" className="brand">PLOP</a>
         <span className="scene-name">{scene.name}</span>
         <div className="mode-switch" role="tablist">
           <button role="tab" aria-selected={mode === 'consumer'}
@@ -127,7 +129,7 @@ export default function Editor() {
             : <Inspector onReplace={setShopTarget} />}
       </div>
       {selectedId === null && scene.objects.length > 0 && (
-        <div className="hint-bar">Click any object to select · drag to move · shift-drag to lift · scroll to zoom</div>
+        <div className="hint-bar">Drag to orbit · scroll to zoom · click an object to select it, then drag it to move · shift-drag lifts</div>
       )}
     </div>
   )

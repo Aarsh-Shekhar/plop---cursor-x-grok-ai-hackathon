@@ -24,7 +24,7 @@ export default function CommandBar() {
         const prompt = t.replace(/^@hive\s*/i, '')
         pushChat('hive', 'Deploying Hive swarm…')
         const res = await createHiveRun(prompt, scene.id, selectedId ? [selectedId] : [])
-        pushChat('hive', `Hive run started (${res.run.id.slice(0, 8)}). Opening the Hive window.`)
+        pushChat('hive', `Swarm deployed — ${res.workerCount ?? 'several'} workers on it. Opening the Hive window.`)
         setHiveRun({ runId: res.run.id, hiveUrl: res.hiveUrl })
         window.open(res.hiveUrl, 'plop-hive', 'width=1440,height=920')
       } else {

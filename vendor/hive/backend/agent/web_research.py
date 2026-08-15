@@ -86,11 +86,36 @@ async def web_search(query: str, max_results: int = 5) -> list[dict[str, str]]:
                 "snippet": snippet,
             })
 
-        return results
+        if results:
+            return results
+        # PLOP integration: DDG HTML intermittently returns an empty page under
+        # rate limiting — fall back to the duckduckgo_search library so a
+        # worker never produces a "no live results" report from one bad fetch.
+        return await asyncio.to_thread(_ddgs_fallback, query, max_results)
 
     except Exception as exc:
         print(f"[WebResearch] Search failed: {exc}")
-        return []
+        try:
+            return await asyncio.to_thread(_ddgs_fallback, query, max_results)
+        except Exception as exc2:
+            print(f"[WebResearch] Fallback search failed: {exc2}")
+            return []
+
+
+def _ddgs_fallback(query: str, max_results: int) -> list[dict[str, str]]:
+    try:
+        from ddgs import DDGS  # type: ignore
+    except ImportError:
+        from duckduckgo_search import DDGS  # type: ignore
+    out = []
+    for r in DDGS().text(query, max_results=max_results):
+        out.append({
+            "title": r.get("title", ""),
+            "url": r.get("href", r.get("url", "")),
+            "snippet": r.get("body", ""),
+        })
+    print(f"[WebResearch] ddgs fallback returned {len(out)} results")
+    return out
 
 
 # ---------------------------------------------------------------------------

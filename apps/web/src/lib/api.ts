@@ -58,6 +58,7 @@ export const shopSearch = (query: string, context: string) =>
   req<ShopResult>('/api/shop', json({ query, context }))
 
 export const createHiveRun = (prompt: string, sceneId: string | null, selectedObjectIds: string[]) =>
-  req<{ run: { id: string }; hiveUrl: string }>('/api/hive/runs', json({ prompt, sceneId, selectedObjectIds }))
+  req<{ run: { id: string }; hiveUrl: string; workerCount?: number }>(
+    '/api/hive/runs', json({ prompt, sceneId, selectedObjectIds }))
 
 export const hiveHealth = () => req<{ ok: boolean; ui: string }>('/api/hive/health')

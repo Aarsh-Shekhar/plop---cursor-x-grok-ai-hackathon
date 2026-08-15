@@ -6,18 +6,16 @@ import * as THREE from 'three'
 import { artifactUrl } from '../../lib/api'
 import type { Scene } from '../../lib/types'
 
-function loadImage(url: string): Promise<HTMLImageElement> {
-  // separate cache key for CORS-mode loads — see materials.ts
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    img.crossOrigin = 'anonymous'
-    img.onload = () => resolve(img)
-    img.onerror = reject
-    img.src = url + (url.includes('?') ? '&' : '?') + 'canvas=1'
-  })
+// fetch → blob → ImageBitmap: sidesteps the browser image cache entirely, so
+// a cached non-CORS <img> response can never taint or fail these loads
+async function loadBitmap(url: string, flip = false): Promise<ImageBitmap> {
+  const res = await fetch(url, { mode: 'cors', cache: 'reload' })
+  if (!res.ok) throw new Error(`texture fetch failed: ${res.status}`)
+  return createImageBitmap(await res.blob(),
+    flip ? { imageOrientation: 'flipY' } : undefined)
 }
 
-function decodeGray(img: HTMLImageElement, w: number, h: number): Uint8ClampedArray {
+function decodeGray(img: ImageBitmap, w: number, h: number): Uint8ClampedArray {
   const canvas = document.createElement('canvas')
   canvas.width = w
   canvas.height = h
@@ -39,7 +37,7 @@ export default function BackdropMesh({ scene, onMiss }: {
     let disposed = false
     ;(async () => {
       const { width: W, height: H, depthMinM, depthMaxM, hfovDeg } = scene.capture
-      const depthImg = await loadImage(artifactUrl(scene.capture.depthUri))
+      const depthImg = await loadBitmap(artifactUrl(scene.capture.depthUri))
       const depth = decodeGray(depthImg, W, H)
       const fx = (W / 2) / Math.tan(((hfovDeg / 2) * Math.PI) / 180)
       const dRange = depthMaxM - depthMinM
@@ -91,9 +89,10 @@ export default function BackdropMesh({ scene, onMiss }: {
       geo.setIndex(indices)
       geo.computeVertexNormals()
 
-      const cleanedUrl = artifactUrl(scene.capture.cleanedUri)
-      const tex = new THREE.TextureLoader().load(
-        cleanedUrl + (cleanedUrl.includes('?') ? '&' : '?') + 'canvas=1')
+      // bitmap pre-flipped at decode; three must not flip again on upload
+      const cleanedBmp = await loadBitmap(artifactUrl(scene.capture.cleanedUri), true)
+      const tex = new THREE.CanvasTexture(cleanedBmp)
+      tex.flipY = false
       tex.colorSpace = THREE.SRGBColorSpace
       if (!disposed) setBuilt({ geo, tex })
     })()

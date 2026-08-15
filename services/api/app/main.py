@@ -25,6 +25,21 @@ app = FastAPI(title="PLOP API")
 app.add_middleware(
     CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def artifacts_always_cors(request, call_next):
+    """Artifacts must ALWAYS carry ACAO. CORSMiddleware only adds it when the
+    request has an Origin header — a plain <img> load (no Origin) gets cached
+    headerless, and the browser then serves that cached response to CORS
+    fetches, which fail. Unconditional ACAO makes cached copies safe too."""
+    response = await call_next(request)
+    if request.url.path.startswith("/artifacts"):
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Cross-Origin-Resource-Policy"] = "cross-origin"
+    return response
+
+
 app.mount("/artifacts", StaticFiles(directory=store.ARTIFACTS_DIR), name="artifacts")
 
 
