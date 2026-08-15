@@ -162,6 +162,13 @@ export default function Landing() {
               Goal Mode agent, measurement, technical scene graph.</span>
             <span className="go">Open →</span>
           </Link>
+          <Link to="/office" className="demo-card">
+            <b>💼 OFFICE — workspace twin</b>
+            <span>A walkable office: desks, meeting zone, lounge corner. Same
+              full editor — rearrange the layout, set goals, research real
+              furniture via the swarm.</span>
+            <span className="go">Open →</span>
+          </Link>
         </div>
       </section>
 

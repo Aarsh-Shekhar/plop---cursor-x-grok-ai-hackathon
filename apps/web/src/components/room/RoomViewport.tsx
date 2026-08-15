@@ -1,19 +1,17 @@
-// Walkable photoreal demo room: renders the real GLB scene, makes every
-// grouped object selectable/movable/removable, and syncs transforms with the
-// editor store so the inspector, NL commands, undo/redo and @hive all work.
+// Walkable demo-scene viewport: renders grouped meshes (from the /room GLB or
+// a procedural build like /office), makes every group selectable/movable/
+// removable, and syncs transforms with the editor store so the inspector,
+// NL commands, undo/redo and @hive all work.
 // WASD walks, drag orbits, click selects, drag-selected moves, shift lifts.
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { OrbitControls, useGLTF } from '@react-three/drei'
+import { OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
 import MeasureOverlay from '../editor/MeasureOverlay'
 import ObjectMesh from '../editor/ObjectMesh'
 import { API_BASE } from '../../lib/api'
 import { useEditor } from '../../state/editor'
-import { MATERIAL_GROUPS, STATIC_MATERIALS } from './roomConfig'
 import type { SceneObject } from '../../lib/types'
-
-const GLB_URL = '/demo3d/room.glb'
 
 export interface RoomGroup {
   key: string           // group label used as object name
@@ -24,49 +22,8 @@ export interface RoomGroup {
   size: THREE.Vector3
 }
 
-/** Parse the GLB once and cluster its meshes into semantic groups. */
-export function useRoomGroups(): { groups: RoomGroup[]; staticMeshes: THREE.Mesh[]; bounds: THREE.Box3 } {
-  const gltf = useGLTF(GLB_URL)
-  return useMemo(() => {
-    const byGroup = new Map<string, THREE.Mesh[]>()
-    const staticMeshes: THREE.Mesh[] = []
-    const bounds = new THREE.Box3()
-    gltf.scene.updateMatrixWorld(true)
-    gltf.scene.traverse((node) => {
-      const mesh = node as THREE.Mesh
-      if (!mesh.isMesh) return
-      // OBJ-derived materials are single-sided; walls viewed from outside
-      // (or thin geometry) would vanish into black otherwise
-      for (const m of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
-        m.side = THREE.DoubleSide
-      }
-      bounds.expandByObject(mesh)
-      const matName = (Array.isArray(mesh.material) ? mesh.material[0]?.name : mesh.material?.name) ?? ''
-      const def = MATERIAL_GROUPS[matName]
-      if (!def || STATIC_MATERIALS.has(matName)) {
-        staticMeshes.push(mesh)
-        return
-      }
-      const list = byGroup.get(def.label) ?? []
-      list.push(mesh)
-      byGroup.set(def.label, list)
-    })
-    const groups: RoomGroup[] = []
-    for (const [label, meshes] of byGroup.entries()) {
-      const box = new THREE.Box3()
-      for (const m of meshes) box.expandByObject(m)
-      const center = box.getCenter(new THREE.Vector3())
-      const size = box.getSize(new THREE.Vector3())
-      const def = Object.values(MATERIAL_GROUPS).find((d) => d.label === label)!
-      groups.push({ key: label, label, category: def.category, meshes, center, size })
-    }
-    groups.sort((a, b) => b.size.x * b.size.y * b.size.z - a.size.x * a.size.y * a.size.z)
-    return { groups, staticMeshes, bounds }
-  }, [gltf])
-}
-
-/** Build the SceneObject docs (real meters, from the GLB's true geometry). */
-export function groupsToObjects(groups: RoomGroup[]): SceneObject[] {
+/** Build the SceneObject docs (real meters, from the groups' true geometry). */
+export function groupsToObjects(groups: RoomGroup[], source = 'demo-glb'): SceneObject[] {
   return groups.map((g, i) => ({
     id: `obj_${i}`,
     name: g.label,
@@ -85,7 +42,7 @@ export function groupsToObjects(groups: RoomGroup[]): SceneObject[] {
       source: 'user' as const,        // true model geometry, not an estimate
       confidence: 1,
     },
-    geometry: { kind: 'model-part' as any, source: 'demo-glb' },
+    geometry: { kind: 'model-part' as any, source },
     appearance: { material: { type: 'original' as const }, dominantColors: [] },
     perception: { confidence: 1 },
     semantic: { description: null, productMatches: [] },
@@ -221,25 +178,53 @@ function StaticRoom({ meshes }: { meshes: THREE.Mesh[] }) {
   return <group ref={ref} onClick={(e) => { e.stopPropagation(); select(null) }} />
 }
 
-/** One-time capture of the room's matching 2D photo, taken from a real
+/** One-time capture of the scene's matching 2D photo, taken from a real
  * rendered frame on the user's machine (skipped once the file exists). */
-function PhotoCapture() {
+function PhotoCapture({ name = 'room' }: { name?: string }) {
   const frames = useRef(0)
   const done = useRef(false)
-  const { gl } = useThree()
+  const { gl, scene, camera } = useThree()
+
+  // dev hook: window.__plopCapture(w, h) renders one frame at the given
+  // resolution (independent of the pane size) and saves it via the API
+  useEffect(() => {
+    ;(window as any).__plopCapture = async (w = 1600, h = 1000) => {
+      const cam = camera as THREE.PerspectiveCamera
+      const prevPR = gl.getPixelRatio()
+      const prevSize = new THREE.Vector2()
+      gl.getSize(prevSize)
+      const prevAspect = cam.aspect
+      gl.setPixelRatio(1)
+      gl.setSize(w, h, false)
+      cam.aspect = w / h
+      cam.updateProjectionMatrix()
+      gl.render(scene, cam)
+      const dataUrl = gl.domElement.toDataURL('image/png')
+      gl.setPixelRatio(prevPR)
+      gl.setSize(prevSize.x, prevSize.y, false)
+      cam.aspect = prevAspect
+      cam.updateProjectionMatrix()
+      const r = await fetch(`${API_BASE}/api/demo/photo`, {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ dataUrl, name }),
+      })
+      return r.json()
+    }
+    return () => { delete (window as any).__plopCapture }
+  }, [gl, scene, camera, name])
   useFrame(() => {
     if (done.current) return
     frames.current++
     if (frames.current !== 90) return
     done.current = true
-    fetch('/demo3d/room-photo.png', { method: 'HEAD' }).then((r) => {
+    fetch(`/demo3d/${name}-photo.png`, { method: 'HEAD' }).then((r) => {
       // vite serves index.html for missing files; treat non-png as missing
       if (r.ok && r.headers.get('content-type')?.includes('image')) return
       const dataUrl = gl.domElement.toDataURL('image/png')
       if (dataUrl.length < 20000) return  // blank frame; try again next visit
       fetch(`${API_BASE}/api/demo/photo`, {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ dataUrl }),
+        body: JSON.stringify({ dataUrl, name }),
       }).catch(() => {})
     }).catch(() => {})
   })
@@ -284,10 +269,13 @@ function WalkControls({ floorY }: { floorY: number }) {
   return null
 }
 
-export default function RoomViewport({ groups, staticMeshes, bounds }: {
+export default function RoomViewport({ groups, staticMeshes, bounds, capturePhoto = false, photoName = 'room', sunlight = false }: {
   groups: RoomGroup[]
   staticMeshes: THREE.Mesh[]
   bounds: THREE.Box3
+  capturePhoto?: boolean
+  photoName?: string
+  sunlight?: boolean   // shadow-casting sun (procedural scenes with a window wall)
 }) {
   const { scene, select, dragging, measureMode, pushMeasurePoint } = useEditor()
   const onMeasure = (e: any) => {
@@ -314,14 +302,32 @@ export default function RoomViewport({ groups, staticMeshes, bounds }: {
       dpr={[1, 2]}
       camera={{ fov: 60, near: 0.05, far: 100, position: eye }}
       style={{ background: '#101318' }}
-      shadows={false}
+      shadows={sunlight}
       gl={{ preserveDrawingBuffer: true }}  // enables canvas snapshots (before-photo capture)
       onPointerMissed={() => select(null)}
     >
-      <ambientLight intensity={1.15} />
-      <hemisphereLight args={['#ffffff', '#8a8f99', 0.9]} />
-      <directionalLight position={[2, 5, 2]} intensity={1.1} />
-      <directionalLight position={[-3, 3, -2]} intensity={0.5} />
+      {sunlight ? (
+        <>
+          <ambientLight intensity={0.6} />
+          <hemisphereLight args={['#eaf2ff', '#8a8f99', 0.55]} />
+          {/* warm sun coming in through the window wall */}
+          <directionalLight
+            position={[2, 4.5, -7]} intensity={1.7} color="#ffeed6" castShadow
+            shadow-mapSize={[2048, 2048]} shadow-bias={-0.0004} shadow-radius={4}
+            shadow-camera-left={-6} shadow-camera-right={6}
+            shadow-camera-top={6} shadow-camera-bottom={-6}
+            shadow-camera-near={0.5} shadow-camera-far={25}
+          />
+          <directionalLight position={[-3, 3, 3]} intensity={0.45} />
+        </>
+      ) : (
+        <>
+          <ambientLight intensity={1.15} />
+          <hemisphereLight args={['#ffffff', '#8a8f99', 0.9]} />
+          <directionalLight position={[2, 5, 2]} intensity={1.1} />
+          <directionalLight position={[-3, 3, -2]} intensity={0.5} />
+        </>
+      )}
       <group onPointerDown={onMeasure}>
       <StaticRoom meshes={staticMeshes} />
       {modelObjects.map((o) => {
@@ -332,7 +338,7 @@ export default function RoomViewport({ groups, staticMeshes, bounds }: {
       </group>
       <MeasureOverlay />
       <WalkControls floorY={floorY} />
-      <PhotoCapture />
+      {capturePhoto && <PhotoCapture name={photoName} />}
       <OrbitControls
         makeDefault
         enabled={!dragging}
@@ -348,5 +354,3 @@ export default function RoomViewport({ groups, staticMeshes, bounds }: {
     </Canvas>
   )
 }
-
-useGLTF.preload(GLB_URL)

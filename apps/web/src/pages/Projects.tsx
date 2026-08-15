@@ -72,6 +72,35 @@ const DC_STAGES: DemoStage[] = [
   { key: 'ready', label: 'Ready', detail: 'Datacenter twin built — walk the aisle, swap parts, watch telemetry', ms: 0 },
 ]
 
+// Office capture: same replayed pipeline over the office phone photo.
+const OFFICE_DETECTIONS: Detection[] = [
+  { label: 'meeting table', conf: 0.97, box: [43, 71, 53, 29] },
+  { label: 'desk', conf: 0.96, box: [57, 48, 23, 26] },
+  { label: 'desk', conf: 0.93, box: [41, 45, 18, 11] },
+  { label: 'office chair', conf: 0.95, box: [36, 42, 13, 22] },
+  { label: 'office chair', conf: 0.94, box: [49, 46, 16, 28] },
+  { label: 'monitor', conf: 0.96, box: [46, 36, 12, 13] },
+  { label: 'laptop', conf: 0.92, box: [63, 44, 10, 9] },
+  { label: 'bookshelf', conf: 0.95, box: [17, 26, 16, 38] },
+  { label: 'filing cabinet', conf: 0.90, box: [79, 44, 15, 27] },
+  { label: 'sofa', conf: 0.93, box: [0, 55, 15, 33] },
+  { label: 'chair', conf: 0.88, box: [78, 60, 18, 28] },
+  { label: 'desk lamp', conf: 0.87, box: [72, 41, 7, 12] },
+  { label: 'floor lamp', conf: 0.86, box: [0, 33, 5, 28] },
+  { label: 'plant', conf: 0.89, box: [43, 35, 6, 11] },
+  { label: 'window', conf: 0.91, box: [51, 8, 49, 41] },
+  { label: 'wall art', conf: 0.84, box: [1, 26, 11, 17] },
+]
+
+const OFFICE_STAGES: DemoStage[] = [
+  { key: 'uploading', label: 'Uploading', detail: 'IMG_4102.jpg · 1.9 MB from camera roll', ms: 900 },
+  { key: 'understanding-objects', label: 'Understanding objects', detail: 'GroundingDINO open-vocabulary detection', ms: 3600 },
+  { key: 'metric-depth', label: 'Metric depth', detail: 'Depth-Anything-V2 indoor — real meters per pixel', ms: 1700 },
+  { key: 'building-geometry', label: 'Building geometry', detail: 'Unprojecting 26 objects into a walkable scene', ms: 1600 },
+  { key: 'indexing-scene', label: 'Indexing scene', detail: 'Scene graph: 84 spatial relations derived', ms: 1100 },
+  { key: 'ready', label: 'Ready', detail: 'Editable 3D twin built — walk it, edit it, set goals', ms: 0 },
+]
+
 const CAPTURES: CaptureSpec[] = [
   {
     id: 'room', file: 'IMG_4021.jpg', place: 'Living Room', time: 'Today 1:47 PM',
@@ -79,6 +108,13 @@ const CAPTURES: CaptureSpec[] = [
     detections: ROOM_DETECTIONS, stages: ROOM_STAGES,
     twinPath: '/room', twinLabel: 'Open the 3D twin →',
     historyName: 'Living Room — 3D twin', historyMeta: 'analyzed · 29 objects · open ↗',
+  },
+  {
+    id: 'office', file: 'IMG_4102.jpg', place: 'Office', time: 'Today 2:31 PM',
+    photo: '/demo3d/office-photo.png', thumb: '/demo3d/office-photo-thumb.png',
+    detections: OFFICE_DETECTIONS, stages: OFFICE_STAGES,
+    twinPath: '/office', twinLabel: 'Open the 3D twin →',
+    historyName: 'Office — 3D twin', historyMeta: 'analyzed · 26 objects · open ↗',
   },
   {
     id: 'dc', file: 'IMG_4088.jpg', place: 'Server Room', time: 'Today 2:12 PM',

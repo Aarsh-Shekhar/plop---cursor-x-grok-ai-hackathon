@@ -258,20 +258,23 @@ async def identify_endpoint(scene_id: str, object_id: str):
 
 class DemoPhotoIn(BaseModel):
     dataUrl: str
+    name: str = "room"
 
 
 @app.post("/api/demo/photo")
 def save_demo_photo(body: DemoPhotoIn):
-    """Save the walkable demo room's viewport snapshot as its matching 2D
+    """Save a walkable demo scene's viewport snapshot as its matching 2D
     photo (served from the web app's public dir)."""
     import base64
+    if body.name not in {"room", "office"}:
+        raise HTTPException(400, "Unknown demo scene name")
     prefix = "data:image/png;base64,"
     if not body.dataUrl.startswith(prefix):
         raise HTTPException(400, "Expected a PNG data URL")
     raw = base64.b64decode(body.dataUrl[len(prefix):])
     if len(raw) > 15 * 1024 * 1024:
         raise HTTPException(413, "Snapshot too large")
-    out = Path(__file__).resolve().parents[3] / "apps" / "web" / "public" / "demo3d" / "room-photo.png"
+    out = Path(__file__).resolve().parents[3] / "apps" / "web" / "public" / "demo3d" / f"{body.name}-photo.png"
     out.write_bytes(raw)
     return {"ok": True, "bytes": len(raw)}
 
